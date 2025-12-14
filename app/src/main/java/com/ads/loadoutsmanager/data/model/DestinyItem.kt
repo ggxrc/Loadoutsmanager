@@ -10,7 +10,16 @@ data class DestinyItem(
     val location: ItemLocation,
     val transferStatus: Int = 0,
     val lockable: Boolean = true,
-    val state: Int = 0
+    val state: Int = 0,
+    val perks: List<Long> = emptyList(),
+    val stats: Map<String, Int> = emptyMap(),
+    val cosmetics: ItemCosmetics? = null,
+    val characterId: String? = null
+)
+
+data class ItemCosmetics(
+    val ornamentHash: Long? = null,
+    val shaderHash: Long? = null
 )
 
 enum class ItemLocation {
