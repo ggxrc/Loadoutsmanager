@@ -2,221 +2,146 @@
 
 Android application for managing Destiny 2 loadouts using the Bungie.net API.
 
-## 🎯 Features
+## Features
 
-- **Full CRUD Operations**: Create, read, update, and delete loadouts per character
-- **Equipment Management**: Manage weapons, armor, and cosmetics (ornaments & shaders)
-- **Smart Item Search**: Automatic search across character inventories and vault
-- **Loadout Equipping**: Equip complete loadouts with automatic item transfer
-- **Vault Integration**: Always-online vault item viewing
-- **Dynamic Theming**: Sci-fi dark theme with future subclass-based themes
-- **Responsive UI**: Adaptive layouts with expandable item details
+- **Full CRUD Operations**: Create, read, update, and delete loadouts
+- **Equipment Management**: Manage equipped items and vault storage
+- **Loadout Equipping**: Equip complete loadouts through the app
+- **Vault Integration**: Store and retrieve loadouts from your Destiny 2 vault
+- **OAuth2 Authentication**: Secure authentication with Bungie.net
 
-## 📁 Project Documentation
-
-- **[IMPLEMENTATION_DETAILS.md](IMPLEMENTATION_DETAILS.md)** - Complete technical specifications
-- **[BUNGIE_API_INTEGRATION.md](BUNGIE_API_INTEGRATION.md)** - API integration guide with examples
-- **[USAGE_EXAMPLES.md](USAGE_EXAMPLES.md)** - Code examples for all components
-- **[CHANGES_SUMMARY.md](CHANGES_SUMMARY.md)** - Recent implementation summary
-
-## 🚀 Quick Start
+## Setup
 
 ### Prerequisites
 
-1. Android Studio (Latest version)
+1. Android Studio
 2. Bungie.net Developer Account
-3. Registered Bungie Application with API Key
+3. Registered Bungie Application
 
-### Setup
+### Bungie API Configuration
 
-1. **Clone the repository**
-```bash
-git clone <repository-url>
-cd Loadoutsmanager
-```
+1. Go to [https://www.bungie.net/en/Application](https://www.bungie.net/en/Application)
+2. Create a new application or use an existing one
+3. Note your **API Key** and **OAuth Client ID**
+4. Configure the OAuth redirect URI: `com.ads.loadoutsmanager://oauth2redirect`
+5. Request the following OAuth scopes:
+   - `ReadUserData`
+   - `ReadDestinyInventoryAndVault`
+   - `MoveEquipDestinyItems`
 
-2. **Configure API Key**
+### App Configuration
 
-Create or edit `local.properties` in the project root:
-```properties
-bungie.api.key=YOUR_API_KEY_HERE
-```
+1. Open `app/src/main/java/com/ads/loadoutsmanager/data/api/BungieConfig.kt`
+2. Replace the placeholder values:
+   ```kotlin
+   const val API_KEY = "your_actual_api_key"
+   const val CLIENT_ID = "your_actual_client_id"
+   ```
 
-> **Note**: Currently using API Key only. OAuth2 Client ID/Secret will be added for write operations.
+## Architecture
 
-3. **Build the project**
-```bash
-./gradlew build
-```
+The app follows Clean Architecture principles with the following layers:
 
-4. **Run on device/emulator**
-```bash
-./gradlew installDebug
-```
+### Data Layer
+- **Models**: Data classes for Destiny entities (`DestinyLoadout`, `DestinyItem`, `DestinyCharacter`)
+- **API**: Retrofit service interfaces and network configuration
+- **Repository**: Data management and business logic
 
-## 🏗️ Architecture
+### Domain Layer
+- Use cases for loadout operations (planned for future implementation)
 
-```
-app/
-├── data/
-│   ├── model/              # Data models (Loadout, Item, Character)
-│   ├── api/                # Bungie API service and interceptors
-│   └── repository/         # Data repositories and search service
-├── presentation/
-│   ├── ui/                 # Compose screens and components
-│   └── viewmodel/          # ViewModels for state management
-└── ui/
-    └── theme/              # Dynamic theme system and colors
-```
+### Presentation Layer
+- **ViewModels**: State management and UI logic
+- **Composables**: Jetpack Compose UI components (to be implemented)
 
-### Key Components
+## API Integration
 
-#### Data Models
-- **DestinyLoadout**: Per-character loadouts with subclass info
-- **LoadoutEquipment**: Structured slots for weapons and armor
-- **DestinyItem**: Items with perks, stats, and cosmetics
-- **ItemCosmetics**: Ornaments (skins) and shaders
+### Authentication Flow
 
-#### Services
-- **EquipmentSearchService**: Smart item search with priority order
-  1. Target character inventory
-  2. Other characters inventory
-  3. Vault
+The app uses OAuth2 for authentication:
 
-#### UI Components
-- **ItemCard**: Expandable item cards with stats and perks
-- **LoadoutDetailScreen**: Dual-view loadout display (list/grid)
-- **BungieItemIcon**: Async image loading from Bungie CDN
-- **Dynamic Themes**: 6 theme variants (Default + 5 subclasses)
+1. User initiates login
+2. App redirects to Bungie.net authorization page
+3. User grants permissions
+4. App receives authorization code
+5. App exchanges code for access token
+6. Access token is used for API requests
 
-## 🎨 Theming System
+### Key API Endpoints
 
-### Default Theme (Sci-Fi Dark)
-```kotlin
-LoadoutsManagerTheme {
-    // Sci-fi dark theme with cyan accents
-    YourContent()
-}
-```
+- `GET /Destiny2/{membershipType}/Profile/{membershipId}/` - Get user profile
+- `GET /Destiny2/{membershipType}/Profile/{membershipId}/Character/{characterId}/` - Get character data
+- `POST /Destiny2/Actions/Items/EquipItem/` - Equip single item
+- `POST /Destiny2/Actions/Items/EquipItems/` - Equip multiple items
+- `POST /Destiny2/Actions/Items/TransferItem/` - Transfer item to/from vault
 
-### Subclass Themes (Future)
-```kotlin
-LoadoutsManagerTheme(theme = LoadoutTheme.Solar) {
-    // Orange/fire theme for Solar builds
-}
-```
-
-Available themes: Default, Solar, Arc, Void, Stasis, Strand
-
-## 📡 API Integration
-
-### Bungie.net Platform
-- **Base URL**: `https://www.bungie.net/Platform`
-- **Authentication**: API Key (header: `X-API-Key`)
-- **Documentation**: https://bungie-net.github.io/
-
-### Key Endpoints
-- Profile & Characters
-- Inventories (character & vault)
-- Item Transfer
-- Item Equipping
-
-See [BUNGIE_API_INTEGRATION.md](BUNGIE_API_INTEGRATION.md) for detailed API documentation.
-
-## 🛠️ Tech Stack
-
-### Core
-- **Kotlin** - Programming language
-- **Jetpack Compose** - Modern UI toolkit
-- **Material 3** - Design system
+## Dependencies
 
 ### Network
-- **Retrofit** 2.9.0 - HTTP client
-- **OkHttp** 4.12.0 - Interceptors & logging
-- **Moshi** 1.15.0 - JSON parsing
-- **Coil** 2.5.0 - Image loading
+- **Retrofit**: HTTP client for API calls
+- **OkHttp**: HTTP client with interceptors
+- **Moshi**: JSON parsing
+
+### Authentication
+- **AppAuth**: OAuth2 and OpenID Connect client
 
 ### Architecture
-- **Coroutines** 1.7.3 - Async operations
-- **StateFlow** - Reactive state
-- **ViewModel** - UI state management
-- **Repository Pattern** - Data layer abstraction
+- **Kotlin Coroutines**: Asynchronous programming
+- **Jetpack Compose**: Modern UI toolkit
+- **ViewModel**: UI state management
+- **StateFlow**: Reactive data streams
 
-### Future
-- **Room** - Local database (planned)
-- **AppAuth** 0.11.1 - OAuth2 (configured, not yet used)
-
-## 📱 Usage Examples
+## Usage
 
 ### Creating a Loadout
-```kotlin
-val loadout = DestinyLoadout(
-    id = UUID.randomUUID().toString(),
-    name = "PvP Build",
-    characterId = "123456",
-    subclassHash = 2550323932, // Arc Titan
-    equipment = LoadoutEquipment(
-        kineticWeapon = myHandCannon,
-        energyWeapon = mySniper,
-        // ... other slots
-    )
-)
-```
 
-### Searching for Items
-```kotlin
-val result = equipmentSearchService.findItem(
-    itemHash = 1234567890,
-    targetCharacterId = "char1",
-    allCharacterInventories = inventories,
-    vaultInventory = vault
-)
+1. Ensure you're authenticated
+2. Select your character
+3. Choose the items you want in the loadout
+4. Save the loadout with a name
 
-// Result includes: item, location, transfer needed
-```
+### Equipping a Loadout
 
-See [USAGE_EXAMPLES.md](USAGE_EXAMPLES.md) for complete examples.
+1. Select a saved loadout
+2. Tap "Equip"
+3. The app will:
+   - Transfer items from vault if needed
+   - Equip all items on your character
 
-## 🔄 Development Status
+### Storing to Vault
 
-### ✅ Completed
-- [x] Project structure and dependencies
-- [x] Data models with cosmetics support
-- [x] Dynamic theme system (6 variants)
-- [x] Equipment search service
-- [x] Expandable item card UI
-- [x] Loadout detail screen (dual-view)
-- [x] Bungie image loading helper
-- [x] API key configuration
+1. Select an equipped loadout
+2. Tap "Store in Vault"
+3. All items will be transferred to your vault
 
-### 🚧 In Progress
-- [ ] Bungie API integration
-- [ ] Item transfer implementation
-- [ ] Loadout equipping flow
-- [ ] Local database (Room)
+## Development Status
 
-### 📋 Planned
-- [ ] Complete OAuth2 flow (for write operations)
-- [ ] Manifest integration (item names/icons)
-- [ ] CRUD UI for loadouts
-- [ ] Character selection
-- [ ] Vault management UI
-- [ ] Subclass-based theme switching
-- [ ] Loading states and error handling
-- [ ] Offline mode
+✅ **Completed:**
+- Project structure setup
+- Dependencies configuration
+- Data models
+- API service interfaces
+- Network layer with OAuth2
+- Repository pattern implementation
+- ViewModel for state management
+- Basic OAuth2 flow
 
-## 🤝 Contributing
+🚧 **In Progress:**
+- UI implementation with Jetpack Compose
+- Local database for offline storage
+- Complete OAuth2 integration testing
 
-This is a personal project, but suggestions and feedback are welcome!
+📋 **Planned:**
+- Advanced filtering and search
+- Loadout sharing
+- Character switching
+- Item details view
+- Vault management UI
 
-## 📄 License
+## License
 
 This project is for educational purposes. Destiny 2 and related content are trademarks of Bungie, Inc.
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 This is an unofficial third-party application and is not affiliated with or endorsed by Bungie, Inc.
-
----
-
-**Built with ❤️ for Guardians**
