@@ -33,7 +33,7 @@ data class SubclassEntity(
     val superHash: Long? = null,
     val aspectHashes: String? = null, // Comma-separated Long values
     val fragmentHashes: String? = null, // Comma-separated Long values
-    val grenadHash: Long? = null,
+    val grenadeHash: Long? = null,
     val meleeHash: Long? = null,
     val classAbilityHash: Long? = null
 )

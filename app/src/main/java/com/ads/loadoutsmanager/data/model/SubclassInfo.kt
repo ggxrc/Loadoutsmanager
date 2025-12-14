@@ -10,7 +10,7 @@ data class SubclassInfo(
     val superHash: Long? = null,
     val aspectHashes: List<Long> = emptyList(),
     val fragmentHashes: List<Long> = emptyList(),
-    val grenadHash: Long? = null,
+    val grenadeHash: Long? = null,
     val meleeHash: Long? = null,
     val classAbilityHash: Long? = null
 )

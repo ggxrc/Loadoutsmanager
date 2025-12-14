@@ -62,7 +62,7 @@ fun ItemCard(
                     .padding(4.dp)
                     .size(8.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(UIColors.Accent)
+                    .background(MaterialTheme.colorScheme.tertiary)
             )
         }
     }

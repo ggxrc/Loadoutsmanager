@@ -55,7 +55,7 @@ fun SubclassInfo.toEntity(): SubclassEntity {
         superHash = superHash,
         aspectHashes = aspectHashes.joinToString(","),
         fragmentHashes = fragmentHashes.joinToString(","),
-        grenadHash = grenadHash,
+        grenadeHash = grenadeHash,
         meleeHash = meleeHash,
         classAbilityHash = classAbilityHash
     )
@@ -68,7 +68,7 @@ fun SubclassEntity.toDomain(): SubclassInfo {
         superHash = superHash,
         aspectHashes = aspectHashes?.split(",")?.mapNotNull { it.toLongOrNull() } ?: emptyList(),
         fragmentHashes = fragmentHashes?.split(",")?.mapNotNull { it.toLongOrNull() } ?: emptyList(),
-        grenadHash = grenadHash,
+        grenadeHash = grenadeHash,
         meleeHash = meleeHash,
         classAbilityHash = classAbilityHash
     )

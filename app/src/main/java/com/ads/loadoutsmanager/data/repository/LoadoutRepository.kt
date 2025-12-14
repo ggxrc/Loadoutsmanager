@@ -192,13 +192,20 @@ class LoadoutRepository(
         targetCharacterId: String
     ): Result<Boolean> {
         return try {
-            // Step 1: Transfer to vault (assuming item is on a different character)
+            // TODO: Track source character ID properly
+            // For now, this is a placeholder that would need to be enhanced
+            // to properly track which character currently has the item
+            
+            // Step 1: Transfer to vault from source character
+            // NOTE: This requires knowing the source character ID
+            // In a real implementation, you would query the API to find
+            // where the item is currently located
             val toVaultRequest = TransferItemRequest(
                 itemReferenceHash = item.itemHash,
                 stackSize = 1,
                 transferToVault = true,
                 itemId = item.itemInstanceId,
-                characterId = item.itemInstanceId, // Source character - would need to track this
+                characterId = "", // TODO: Get actual source character ID from API
                 membershipType = membershipType
             )
             val toVaultResponse = bungieApiService.transferItem(toVaultRequest)
