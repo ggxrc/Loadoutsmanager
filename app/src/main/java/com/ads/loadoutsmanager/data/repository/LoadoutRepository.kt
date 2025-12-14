@@ -19,21 +19,27 @@ class LoadoutRepository(
     private val membershipId: String
 ) {
     
-    // In-memory storage for loadouts (should be replaced with local database)
+    // In-memory storage for loadouts
+    // TODO: Replace with Room database for persistent storage
     private val loadouts = mutableListOf<DestinyLoadout>()
+    private val loadoutsLock = Any()
     
     /**
      * Get all loadouts for a character
      */
     suspend fun getLoadouts(characterId: String): List<DestinyLoadout> = withContext(Dispatchers.IO) {
-        loadouts.filter { it.characterId == characterId }
+        synchronized(loadoutsLock) {
+            loadouts.filter { it.characterId == characterId }
+        }
     }
     
     /**
      * Get a specific loadout by ID
      */
     suspend fun getLoadout(loadoutId: String): DestinyLoadout? = withContext(Dispatchers.IO) {
-        loadouts.find { it.id == loadoutId }
+        synchronized(loadoutsLock) {
+            loadouts.find { it.id == loadoutId }
+        }
     }
     
     /**
@@ -41,7 +47,9 @@ class LoadoutRepository(
      */
     suspend fun createLoadout(loadout: DestinyLoadout): Result<DestinyLoadout> = withContext(Dispatchers.IO) {
         try {
-            loadouts.add(loadout)
+            synchronized(loadoutsLock) {
+                loadouts.add(loadout)
+            }
             Result.success(loadout)
         } catch (e: Exception) {
             Result.failure(e)
@@ -53,12 +61,14 @@ class LoadoutRepository(
      */
     suspend fun updateLoadout(loadout: DestinyLoadout): Result<DestinyLoadout> = withContext(Dispatchers.IO) {
         try {
-            val index = loadouts.indexOfFirst { it.id == loadout.id }
-            if (index != -1) {
-                loadouts[index] = loadout.copy(updatedAt = System.currentTimeMillis())
-                Result.success(loadouts[index])
-            } else {
-                Result.failure(Exception("Loadout not found"))
+            synchronized(loadoutsLock) {
+                val index = loadouts.indexOfFirst { it.id == loadout.id }
+                if (index != -1) {
+                    loadouts[index] = loadout.copy(updatedAt = System.currentTimeMillis())
+                    Result.success(loadouts[index])
+                } else {
+                    Result.failure(Exception("Loadout not found"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -70,7 +80,9 @@ class LoadoutRepository(
      */
     suspend fun deleteLoadout(loadoutId: String): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val removed = loadouts.removeIf { it.id == loadoutId }
+            val removed = synchronized(loadoutsLock) {
+                loadouts.removeIf { it.id == loadoutId }
+            }
             Result.success(removed)
         } catch (e: Exception) {
             Result.failure(e)
@@ -156,6 +168,7 @@ class LoadoutRepository(
     
     /**
      * Get currently equipped items for a character
+     * Note: Response parsing would need to be implemented based on actual API response structure
      */
     suspend fun getEquippedItems(characterId: String): Result<List<DestinyItem>> = withContext(Dispatchers.IO) {
         try {
@@ -167,9 +180,11 @@ class LoadoutRepository(
             )
             
             if (response.isSuccessful && response.body()?.ErrorCode == 1) {
-                // Parse equipped items from response
-                // This is a simplified version - actual parsing would be more complex
-                val items = listOf<DestinyItem>() // TODO: Parse from response
+                // TODO: Parse equipped items from response.body()?.Response?.equipment?.data
+                // The actual parsing would depend on the Bungie API response structure
+                // For now, return empty list as placeholder
+                // Future implementation should deserialize the equipment data into DestinyItem objects
+                val items = listOf<DestinyItem>()
                 Result.success(items)
             } else {
                 Result.failure(Exception("Failed to get equipped items: ${response.body()?.ErrorStatus}"))
