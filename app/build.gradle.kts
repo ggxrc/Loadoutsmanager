@@ -49,6 +49,30 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    
+    // Retrofit for API calls
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.moshi)
+    
+    // OkHttp for HTTP client
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    
+    // Moshi for JSON parsing
+    implementation(libs.moshi)
+    implementation(libs.moshi.kotlin)
+    
+    // ViewModel and LiveData
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    
+    // OAuth2 Authentication
+    implementation(libs.appauth)
+    
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android)
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
