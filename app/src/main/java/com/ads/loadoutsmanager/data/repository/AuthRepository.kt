@@ -19,46 +19,50 @@ class AuthRepository(
     /**
      * Verify and resolve Cross-Save membership
      * Returns the primary membership to use for API calls
-     * 
-     * @param membershipType Initial membership type (from OAuth)
-     * @param membershipId Initial membership ID (from OAuth)
-     * @return Primary membership to use (may be different due to Cross-Save)
+     * Gets the user's Destiny memberships from GetMembershipsForCurrentUser API
+     * Then resolves the primary Destiny membership (considering Cross-Save)
      */
-    suspend fun resolveCrossSaveMembership(
-        membershipType: Int,
-        membershipId: String
-    ): Result<UserMembership> = withContext(Dispatchers.IO) {
+    suspend fun resolveCrossSaveMembership(): Result<UserMembership> = withContext(Dispatchers.IO) {
         try {
-            val response = bungieApiService.getLinkedProfiles(
-                membershipType = membershipType,
-                destinyMembershipId = membershipId
-            )
-            
-            if (response.isSuccess && response.Response != null) {
-                val linkedProfiles = response.Response
-                val primaryMembership = linkedProfiles.getPrimaryMembership()
-                
+            // Get current user's memberships (this includes all platforms)
+            val membershipsResponse = bungieApiService.getMembershipsForCurrentUser()
+
+            if (membershipsResponse.isSuccess && membershipsResponse.Response != null) {
+                val membershipsData = membershipsResponse.Response
+
+                // Get the primary membership (considering Cross-Save)
+                val primaryMembership = if (membershipsData.destinyMemberships.isNotEmpty()) {
+                    // Find the membership with crossSaveOverride != 0, or the first one
+                    membershipsData.destinyMemberships.find { it.crossSaveOverride != 0 }
+                        ?: membershipsData.destinyMemberships.firstOrNull()
+                } else {
+                    null
+                }
+
                 if (primaryMembership != null) {
                     // Save the primary membership for future use
                     tokenStorage.saveTokens(
                         accessToken = tokenStorage.getAccessToken() ?: "",
                         refreshToken = tokenStorage.getRefreshToken() ?: "",
                         expiresIn = (tokenStorage.getTokenExpiry() - System.currentTimeMillis()) / 1000,
-                        membershipId = primaryMembership.membershipId
+                        membershipId = primaryMembership.membershipId,
+                        membershipType = primaryMembership.membershipType,
+                        displayName = primaryMembership.displayName
                     )
-                    
+
                     return@withContext Result.success(primaryMembership)
                 } else {
                     return@withContext Result.failure(
-                        Exception("No valid Destiny membership found")
+                        Exception("No valid Destiny membership found. Make sure you have played Destiny 2.")
                     )
                 }
             } else {
                 return@withContext Result.failure(
-                    Exception("Failed to get linked profiles: ${response.ErrorStatus}")
+                    Exception("Failed to get memberships: ${membershipsResponse.ErrorStatus} - ${membershipsResponse.Message}")
                 )
             }
         } catch (e: Exception) {
+            android.util.Log.e("AuthRepository", "Error resolving Cross-Save membership", e)
             return@withContext Result.failure(e)
         }
     }

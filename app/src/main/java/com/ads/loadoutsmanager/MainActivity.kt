@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -13,9 +14,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ads.loadoutsmanager.presentation.ui.LoginScreen
+import com.ads.loadoutsmanager.presentation.ui.StyledMainScreen
 import com.ads.loadoutsmanager.presentation.viewmodel.AuthViewModel
+import com.ads.loadoutsmanager.presentation.viewmodel.LoadoutViewModel
 import com.ads.loadoutsmanager.ui.theme.LoadoutsManagerTheme
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
@@ -64,14 +70,60 @@ fun LoadoutsManagerApp(authViewModel: AuthViewModel) {
     val authState by authViewModel.authState.collectAsState()
     
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        LoginScreen(
-            authViewModel = authViewModel,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            onAuthSuccess = {
-                // TODO: Navigate to loadout list
+        when (val state = authState) {
+            is AuthViewModel.AuthState.Authenticated -> {
+                // Get membership info and create LoadoutViewModel
+                val app = LocalContext.current.applicationContext as LoadoutsApplication
+                val membership = app.authRepository.getCurrentMembership()
+
+                if (membership != null) {
+                    val loadoutRepository = app.createLoadoutRepository(
+                        membershipType = membership.membershipType,
+                        membershipId = membership.membershipId
+                    )
+
+                    val loadoutViewModel: LoadoutViewModel = viewModel(
+                        factory = LoadoutViewModel.Factory(
+                            loadoutRepository = loadoutRepository,
+                            membershipType = membership.membershipType,
+                            membershipId = membership.membershipId
+                        )
+                    )
+
+                    // Show main screen when authenticated
+                    StyledMainScreen(
+                        displayName = state.displayName,
+                        loadoutViewModel = loadoutViewModel,
+                        loadoutRepository = loadoutRepository,
+                        onLogout = {
+                            authViewModel.logout()
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    )
+                } else {
+                    // No membership found, show error
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Error: No membership found")
+                    }
+                }
             }
-        )
+            else -> {
+                // Show login screen for all other states
+                LoginScreen(
+                    authViewModel = authViewModel,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    onAuthSuccess = {
+                        // Navigation handled by state change
+                    }
+                )
+            }
+        }
     }
 }

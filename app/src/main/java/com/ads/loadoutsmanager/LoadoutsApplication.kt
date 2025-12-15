@@ -12,6 +12,7 @@ import net.openid.appauth.AuthorizationService
 
 /**
  * Application class for dependency initialization
+ * Uses credentials from BungieConfig (loaded from local.properties)
  */
 class LoadoutsApplication : Application() {
     
@@ -25,7 +26,7 @@ class LoadoutsApplication : Application() {
     }
     
     private val oauth2Manager by lazy {
-        OAuth2Manager(this, BuildConfig.BUNGIE_CLIENT_ID) 
+        OAuth2Manager(this, tokenStorage)
     }
     
     private val authorizationService by lazy {
@@ -43,14 +44,13 @@ class LoadoutsApplication : Application() {
     // API Service with dynamic token and automatic refresh
     val bungieApiService by lazy {
         NetworkModule.createBungieApiService(
-            apiKey = BuildConfig.BUNGIE_API_KEY,
-            accessToken = tokenStorage.getAccessToken(),
+            getAccessToken = { tokenStorage.getAccessToken() },
             authenticator = tokenRefreshAuthenticator
         )
     }
-    
+
     val manifestService by lazy {
-        NetworkModule.createManifestService(BuildConfig.BUNGIE_API_KEY)
+        NetworkModule.createManifestService()
     }
     
     // Repositories

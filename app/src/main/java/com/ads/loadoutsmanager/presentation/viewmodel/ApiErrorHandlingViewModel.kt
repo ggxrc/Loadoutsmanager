@@ -39,7 +39,7 @@ class ApiErrorHandlingViewModel(
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             
-            val result = authRepository.resolveCrossSaveMembership(membershipType, membershipId)
+            val result = authRepository.resolveCrossSaveMembership()
             result.fold(
                 onSuccess = { membership ->
                     _uiState.value = UiState.Success("Cross-Save verified for ${membership.displayName}")

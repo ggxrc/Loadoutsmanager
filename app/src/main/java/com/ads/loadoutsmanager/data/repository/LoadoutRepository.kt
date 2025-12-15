@@ -6,10 +6,11 @@ import com.ads.loadoutsmanager.data.api.TransferItemRequest
 import com.ads.loadoutsmanager.data.database.LoadoutsDatabase
 import com.ads.loadoutsmanager.data.database.toEntity
 import com.ads.loadoutsmanager.data.database.toDomain
-import com.ads.loadoutsmanager.data.model.DestinyComponents
 import com.ads.loadoutsmanager.data.model.DestinyLoadout
 import com.ads.loadoutsmanager.data.model.DestinyItem
 import com.ads.loadoutsmanager.data.model.ItemLocation
+import com.ads.loadoutsmanager.data.model.toDestinyCharacter
+import com.ads.loadoutsmanager.data.model.toDestinyItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -300,26 +301,191 @@ class LoadoutRepository(
     }
     
     /**
-     * Get vault items (always fetched fresh from API, never cached)
+     * Get all characters from Bungie API
+     * Component 200: Characters
+     */
+    suspend fun getCharacters(): Result<List<com.ads.loadoutsmanager.data.model.DestinyCharacter>> = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("LoadoutRepository", "📡 Fetching characters from API...")
+
+            val response = bungieApiService.getProfileCharacters(
+                membershipType = membershipType,
+                destinyMembershipId = membershipId,
+                components = "200"
+            )
+
+            if (response.isSuccess && response.Response != null) {
+                val charactersData = response.Response.characters?.data
+
+                if (charactersData != null) {
+                    val characters = charactersData.values.map { it.toDestinyCharacter() }
+                    android.util.Log.d("LoadoutRepository", "✅ Loaded ${characters.size} characters")
+                    return@withContext Result.success(characters)
+                } else {
+                    android.util.Log.w("LoadoutRepository", "⚠️ No character data in response")
+                    return@withContext Result.failure(Exception("No character data available"))
+                }
+            } else {
+                android.util.Log.e("LoadoutRepository", "❌ API error: ${response.ErrorStatus}")
+                return@withContext Result.failure(
+                    Exception("Failed to get characters: ${response.ErrorStatus}")
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LoadoutRepository", "❌ Exception getting characters", e)
+            return@withContext Result.failure(e)
+        }
+    }
+
+    /**
+     * Get equipped items for a character
+     * Component 205: CharacterEquipment
+     * Component 300: ItemInstances
+     */
+    suspend fun getEquippedItemsForCharacter(characterId: String): Result<List<DestinyItem>> = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("LoadoutRepository", "📡 Fetching equipped items for character $characterId...")
+
+            val response = bungieApiService.getProfileEquipment(
+                membershipType = membershipType,
+                destinyMembershipId = membershipId,
+                components = "205,300"
+            )
+
+            if (response.isSuccess && response.Response != null) {
+                val equipmentData = response.Response.characterEquipment?.data?.get(characterId)
+
+                if (equipmentData != null && equipmentData.items != null) {
+                    val items = equipmentData.items.mapNotNull { item ->
+                        // Only include weapons and armor (exclude subclass, ghost, etc for now)
+                        if (isWeaponOrArmor(item.bucketHash)) {
+                            item.toDestinyItem(ItemLocation.EQUIPPED)
+                        } else null
+                    }
+                    android.util.Log.d("LoadoutRepository", "✅ Loaded ${items.size} equipped items")
+                    return@withContext Result.success(items)
+                } else {
+                    android.util.Log.w("LoadoutRepository", "⚠️ No equipment data for character")
+                    return@withContext Result.success(emptyList())
+                }
+            } else {
+                android.util.Log.e("LoadoutRepository", "❌ API error: ${response.ErrorStatus}")
+                return@withContext Result.failure(
+                    Exception("Failed to get equipment: ${response.ErrorStatus}")
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LoadoutRepository", "❌ Exception getting equipment", e)
+            return@withContext Result.failure(e)
+        }
+    }
+
+    /**
+     * Get inventory items for a character
+     * Component 201: CharacterInventories
+     * Component 300: ItemInstances
+     */
+    suspend fun getInventoryItemsForCharacter(characterId: String): Result<List<DestinyItem>> = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("LoadoutRepository", "📡 Fetching inventory for character $characterId...")
+
+            val response = bungieApiService.getProfileInventories(
+                membershipType = membershipType,
+                destinyMembershipId = membershipId,
+                components = "201,300"
+            )
+
+            if (response.isSuccess && response.Response != null) {
+                val inventoryData = response.Response.characterInventories?.data?.get(characterId)
+
+                if (inventoryData != null && inventoryData.items != null) {
+                    val items = inventoryData.items.mapNotNull { item ->
+                        if (isWeaponOrArmor(item.bucketHash)) {
+                            item.toDestinyItem(ItemLocation.INVENTORY)
+                        } else null
+                    }
+                    android.util.Log.d("LoadoutRepository", "✅ Loaded ${items.size} inventory items")
+                    return@withContext Result.success(items)
+                } else {
+                    android.util.Log.w("LoadoutRepository", "⚠️ No inventory data for character")
+                    return@withContext Result.success(emptyList())
+                }
+            } else {
+                android.util.Log.e("LoadoutRepository", "❌ API error: ${response.ErrorStatus}")
+                return@withContext Result.failure(
+                    Exception("Failed to get inventory: ${response.ErrorStatus}")
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LoadoutRepository", "❌ Exception getting inventory", e)
+            return@withContext Result.failure(e)
+        }
+    }
+
+    /**
+     * Get vault items
+     * Component 102: ProfileInventory (Vault)
+     * Component 300: ItemInstances
      */
     suspend fun getVaultItems(): Result<List<DestinyItem>> = withContext(Dispatchers.IO) {
         try {
-            val response = bungieApiService.getProfile(
+            android.util.Log.d("LoadoutRepository", "📡 Fetching vault items...")
+
+            val response = bungieApiService.getProfileInventories(
                 membershipType = membershipType,
                 destinyMembershipId = membershipId,
-                components = "102,300,305" // ProfileInventories, ItemInstances, ItemSockets
+                components = "102,300"
             )
             
-            if (response.isSuccess) {
-                // TODO: Parse vault items from response
-                val items = listOf<DestinyItem>()
-                Result.success(items)
+            if (response.isSuccess && response.Response != null) {
+                val vaultData = response.Response.profileInventory?.data
+
+                if (vaultData != null && vaultData.items != null) {
+                    val items = vaultData.items.mapNotNull { item ->
+                        if (isWeaponOrArmor(item.bucketHash)) {
+                            item.toDestinyItem(ItemLocation.VAULT)
+                        } else null
+                    }
+                    android.util.Log.d("LoadoutRepository", "✅ Loaded ${items.size} vault items")
+                    return@withContext Result.success(items)
+                } else {
+                    android.util.Log.w("LoadoutRepository", "⚠️ No vault data")
+                    return@withContext Result.success(emptyList())
+                }
             } else {
-                Result.failure(Exception("Failed to get vault items: ${response.ErrorStatus}"))
+                android.util.Log.e("LoadoutRepository", "❌ API error: ${response.ErrorStatus}")
+                return@withContext Result.failure(
+                    Exception("Failed to get vault: ${response.ErrorStatus}")
+                )
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            android.util.Log.e("LoadoutRepository", "❌ Exception getting vault", e)
+            return@withContext Result.failure(e)
         }
     }
-}
 
+    /**
+     * Helper function to check if bucket is weapon or armor
+     * Bucket hashes from Bungie API documentation:
+     * - Kinetic Weapon: 1498876634
+     * - Energy Weapon: 2465295065
+     * - Power Weapon: 953998645
+     * - Helmet: 3448274439
+     * - Gauntlets: 3551918588
+     * - Chest: 14239492
+     * - Legs: 20886954
+     * - Class Item: 1585787867
+     */
+    private fun isWeaponOrArmor(bucketHash: Long): Boolean {
+        return bucketHash in setOf(
+            1498876634L, // Kinetic
+            2465295065L, // Energy
+            953998645L,  // Power
+            3448274439L, // Helmet
+            3551918588L, // Gauntlets
+            14239492L,   // Chest
+            20886954L,   // Legs
+            1585787867L  // Class Item
+        )
+    }
+}

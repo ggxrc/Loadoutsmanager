@@ -29,16 +29,52 @@ interface BungieApiService {
     ): BungieResponse<com.ads.loadoutsmanager.data.model.LinkedProfiles>
     
     /**
-     * Get user's Destiny 2 profile
+     * Get memberships for the current authenticated user
+     * Requires OAuth2 authentication
+     * Returns all platform memberships associated with the Bungie account
+     */
+    @GET("User/GetMembershipsForCurrentUser/")
+    suspend fun getMembershipsForCurrentUser(): BungieResponse<com.ads.loadoutsmanager.data.model.UserMembershipsData>
+
+    /**
+     * Get user's Destiny 2 profile with characters
+     * Component 200: Characters
      * Requires OAuth2 authentication
      */
     @GET("Destiny2/{membershipType}/Profile/{destinyMembershipId}/")
-    suspend fun getProfile(
+    suspend fun getProfileCharacters(
         @Path("membershipType") membershipType: Int,
         @Path("destinyMembershipId") destinyMembershipId: String,
-        @Query("components") components: String
-    ): BungieResponse<ProfileData>
-    
+        @Query("components") components: String = "200"
+    ): BungieResponse<com.ads.loadoutsmanager.data.model.ProfileCharactersResponse>
+
+    /**
+     * Get character equipment
+     * Component 205: CharacterEquipment
+     * Component 300: ItemInstances
+     * Requires OAuth2 authentication
+     */
+    @GET("Destiny2/{membershipType}/Profile/{destinyMembershipId}/")
+    suspend fun getProfileEquipment(
+        @Path("membershipType") membershipType: Int,
+        @Path("destinyMembershipId") destinyMembershipId: String,
+        @Query("components") components: String = "205,300"
+    ): BungieResponse<com.ads.loadoutsmanager.data.model.ProfileEquipmentResponse>
+
+    /**
+     * Get character and vault inventories
+     * Component 201: CharacterInventories
+     * Component 102: ProfileInventory (vault)
+     * Component 300: ItemInstances
+     * Requires OAuth2 authentication
+     */
+    @GET("Destiny2/{membershipType}/Profile/{destinyMembershipId}/")
+    suspend fun getProfileInventories(
+        @Path("membershipType") membershipType: Int,
+        @Path("destinyMembershipId") destinyMembershipId: String,
+        @Query("components") components: String = "102,201,300"
+    ): BungieResponse<com.ads.loadoutsmanager.data.model.ProfileInventoryResponse>
+
     /**
      * Get character equipment
      * Requires OAuth2 authentication

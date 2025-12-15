@@ -18,7 +18,7 @@ data class UserMembership(
     val crossSaveOverride: Int,
     val applicableMembershipTypes: List<Int>?,
     val isPublic: Boolean,
-    val membershipFlags: Int
+    val membershipFlags: Int?  // Made nullable since API doesn't always include it
 )
 
 /**

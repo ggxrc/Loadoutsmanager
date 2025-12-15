@@ -2,11 +2,10 @@ package com.ads.loadoutsmanager.data.auth
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 
 /**
- * Secure storage for OAuth2 tokens using EncryptedSharedPreferences
+ * Secure storage for OAuth2 tokens using regular SharedPreferences
+ * TODO: Switch to EncryptedSharedPreferences in production
  */
 class SecureTokenStorage(context: Context) {
     
@@ -20,18 +19,8 @@ class SecureTokenStorage(context: Context) {
         private const val KEY_DISPLAY_NAME = "display_name"
     }
     
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-    
-    private val sharedPreferences: SharedPreferences = EncryptedSharedPreferences.create(
-        context,
-        PREFS_NAME,
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
-    
+    private val sharedPreferences: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
     /**
      * Save OAuth2 tokens securely
      */
@@ -39,7 +28,9 @@ class SecureTokenStorage(context: Context) {
         accessToken: String,
         refreshToken: String,
         expiresIn: Long,
-        membershipId: String? = null
+        membershipId: String? = null,
+        membershipType: Int? = null,
+        displayName: String? = null
     ) {
         val expiryTime = System.currentTimeMillis() + (expiresIn * 1000)
         
@@ -48,7 +39,9 @@ class SecureTokenStorage(context: Context) {
             putString(KEY_REFRESH_TOKEN, refreshToken)
             putLong(KEY_TOKEN_EXPIRY, expiryTime)
             membershipId?.let { putString(KEY_MEMBERSHIP_ID, it) }
-            apply()
+            membershipType?.let { putInt(KEY_MEMBERSHIP_TYPE, it) }
+            displayName?.let { putString(KEY_DISPLAY_NAME, it) }
+            commit()  // Synchronous save
         }
     }
     
