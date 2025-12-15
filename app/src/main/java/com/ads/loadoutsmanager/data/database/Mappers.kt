@@ -1,5 +1,6 @@
 package com.ads.loadoutsmanager.data.database
 
+import com.ads.loadoutsmanager.data.database.dao.ItemDao
 import com.ads.loadoutsmanager.data.database.entity.ItemCosmeticsEntity
 import com.ads.loadoutsmanager.data.database.entity.ItemEntity
 import com.ads.loadoutsmanager.data.database.entity.LoadoutEntity

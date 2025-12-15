@@ -28,6 +28,16 @@ class LoadoutViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
     
+    private val _allCharacterIds = MutableStateFlow<List<String>>(emptyList())
+    val allCharacterIds: StateFlow<List<String>> = _allCharacterIds.asStateFlow()
+    
+    /**
+     * Set all character IDs for the account
+     */
+    fun setAllCharacterIds(characterIds: List<String>) {
+        _allCharacterIds.value = characterIds
+    }
+    
     /**
      * Load all loadouts for a character
      */
@@ -123,7 +133,7 @@ class LoadoutViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                repository.equipLoadout(loadout)
+                repository.equipLoadout(loadout, _allCharacterIds.value)
                     .onSuccess {
                         loadLoadouts(loadout.characterId)
                         _error.value = null

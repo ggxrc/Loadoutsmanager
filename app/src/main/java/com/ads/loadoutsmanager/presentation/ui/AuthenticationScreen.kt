@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 /**
  * Authentication screen for OAuth2 login
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthenticationScreen(
     isAuthenticated: Boolean,
