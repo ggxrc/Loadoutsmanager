@@ -83,6 +83,11 @@ class LoadoutViewModel(
         _selectedCharacter.value = character
         loadLoadoutsForCharacter(character.characterId)
     }
+    
+    /**
+     * Get character changed event for observers
+     */
+    fun getSelectedCharacterId(): String? = _selectedCharacter.value?.characterId
 
     /**
      * Load loadouts for the selected character

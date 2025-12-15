@@ -112,7 +112,7 @@ data class DestinyItemSocket(
 /**
  * Extension to convert to simple DestinyItem model
  */
-fun DestinyItemComponent.toDestinyItem(location: ItemLocation): DestinyItem {
+fun DestinyItemComponent.toDestinyItem(location: ItemLocation, iconUrl: String? = null): DestinyItem {
     return DestinyItem(
         itemInstanceId = itemInstanceId ?: "",
         itemHash = itemHash,
@@ -120,7 +120,8 @@ fun DestinyItemComponent.toDestinyItem(location: ItemLocation): DestinyItem {
         location = location,
         transferStatus = transferStatus,
         lockable = lockable,
-        state = state
+        state = state,
+        iconUrl = iconUrl
     )
 }
 

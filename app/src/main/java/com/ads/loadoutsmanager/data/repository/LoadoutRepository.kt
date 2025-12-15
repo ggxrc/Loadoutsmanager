@@ -22,6 +22,7 @@ import kotlinx.coroutines.withContext
  */
 class LoadoutRepository(
     private val bungieApiService: BungieApiService,
+    private val manifestService: com.ads.loadoutsmanager.data.api.ManifestService,
     private val database: LoadoutsDatabase,
     private val membershipType: Int,
     private val membershipId: String
@@ -359,7 +360,8 @@ class LoadoutRepository(
                     val items = equipmentData.items.mapNotNull { item ->
                         // Only include weapons and armor (exclude subclass, ghost, etc for now)
                         if (isWeaponOrArmor(item.bucketHash)) {
-                            item.toDestinyItem(ItemLocation.EQUIPPED)
+                            val iconUrl = fetchIconUrl(item.itemHash)
+                            item.toDestinyItem(ItemLocation.EQUIPPED, iconUrl)
                         } else null
                     }
                     android.util.Log.d("LoadoutRepository", "✅ Loaded ${items.size} equipped items")
@@ -401,7 +403,8 @@ class LoadoutRepository(
                 if (inventoryData != null && inventoryData.items != null) {
                     val items = inventoryData.items.mapNotNull { item ->
                         if (isWeaponOrArmor(item.bucketHash)) {
-                            item.toDestinyItem(ItemLocation.INVENTORY)
+                            val iconUrl = fetchIconUrl(item.itemHash)
+                            item.toDestinyItem(ItemLocation.INVENTORY, iconUrl)
                         } else null
                     }
                     android.util.Log.d("LoadoutRepository", "✅ Loaded ${items.size} inventory items")
@@ -443,7 +446,8 @@ class LoadoutRepository(
                 if (vaultData != null && vaultData.items != null) {
                     val items = vaultData.items.mapNotNull { item ->
                         if (isWeaponOrArmor(item.bucketHash)) {
-                            item.toDestinyItem(ItemLocation.VAULT)
+                            val iconUrl = fetchIconUrl(item.itemHash)
+                            item.toDestinyItem(ItemLocation.VAULT, iconUrl)
                         } else null
                     }
                     android.util.Log.d("LoadoutRepository", "✅ Loaded ${items.size} vault items")
@@ -488,4 +492,90 @@ class LoadoutRepository(
             1585787867L  // Class Item
         )
     }
-}
+    
+    /**
+     * Fetch icon URL for an item from manifest
+     */
+    private suspend fun fetchIconUrl(itemHash: Long): String? {
+        return try {
+            val response = manifestService.getItemDefinition(itemHash)
+            if (response.isSuccess && response.Response != null) {
+                response.Response.displayProperties?.icon
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LoadoutRepository", "❌ Failed to fetch icon for $itemHash", e)
+            null
+        }
+    }
+    
+    /**
+     * Sync vault items from API to local database with smart caching
+     * Fetches all vault items and stores them locally for faster access
+     * Only fetches iconUrl for items that don't already have it cached
+     */
+    suspend fun syncVaultToDatabase(): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("LoadoutRepository", "🔄 Starting vault sync to database...")
+            
+            // Fetch vault items from API using ProfileInventories component
+            val result = getVaultItems()
+            
+            if (result.isSuccess) {
+                val vaultItems = result.getOrNull() ?: emptyList()
+                
+                if (vaultItems.isNotEmpty()) {
+                    // Get existing items from DB to check which already have iconUrl
+                    val existingItems = itemDao.getVaultItems()
+                    val existingIconMap = existingItems.associate { it.itemHash to it.iconUrl }
+                    
+                    // Only fetch icons for items that don't have them cached
+                    val itemEntities = vaultItems.map { item ->
+                        val cachedIcon = existingIconMap[item.itemHash]
+                        if (cachedIcon != null) {
+                            // Use cached icon
+                            item.copy(iconUrl = cachedIcon).toEntity()
+                        } else {
+                            // Fetch icon from manifest API
+                            val iconUrl = fetchIconUrl(item.itemHash)
+                            item.copy(iconUrl = iconUrl).toEntity()
+                        }
+                    }
+                    
+                    // Clear old vault items and insert new ones
+                    itemDao.deleteAllVaultItems()
+                    itemDao.syncVaultItems(itemEntities)
+                    
+                    val newIconsFetched = itemEntities.count { it.iconUrl != null && existingIconMap[it.itemHash] == null }
+                    android.util.Log.d("LoadoutRepository", "✅ Synced ${vaultItems.size} vault items (${newIconsFetched} new icons fetched)")
+                    Result.success(vaultItems.size)
+                } else {
+                    android.util.Log.w("LoadoutRepository", "⚠️ No vault items to sync")
+                    Result.success(0)
+                }
+            } else {
+                android.util.Log.e("LoadoutRepository", "❌ Failed to fetch vault items for sync")
+                Result.failure(result.exceptionOrNull() ?: Exception("Failed to fetch vault items"))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LoadoutRepository", "❌ Exception during vault sync", e)
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Get vault items from local database
+     * Much faster than API calls - used for displaying items
+     */
+    suspend fun getVaultItemsFromDatabase(): Result<List<DestinyItem>> = withContext(Dispatchers.IO) {
+        try {
+            val itemEntities = itemDao.getVaultItems()
+            val items = itemEntities.map { it.toDomain() }
+            android.util.Log.d("LoadoutRepository", "📦 Retrieved ${items.size} vault items from database")
+            Result.success(items)
+        } catch (e: Exception) {
+            android.util.Log.e("LoadoutRepository", "❌ Failed to get vault items from database", e)
+            Result.failure(e)
+        }
+    }}

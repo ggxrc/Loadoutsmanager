@@ -15,8 +15,11 @@ import kotlinx.coroutines.launch
  */
 class ItemSelectorViewModel(
     private val loadoutRepository: LoadoutRepository,
-    private val characterId: String
+    initialCharacterId: String
 ) : ViewModel() {
+
+    // Character ID can be updated when switching characters
+    private var currentCharacterId: String = initialCharacterId
 
     private val _equippedItems = MutableStateFlow<List<DestinyItem>>(emptyList())
     val equippedItems: StateFlow<List<DestinyItem>> = _equippedItems.asStateFlow()
@@ -32,6 +35,25 @@ class ItemSelectorViewModel(
 
     private val _uiState = MutableStateFlow<ItemSelectorUiState>(ItemSelectorUiState.Loading)
     val uiState: StateFlow<ItemSelectorUiState> = _uiState.asStateFlow()
+    
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+    
+    // Vault pagination
+    private val _vaultPage = MutableStateFlow(0)
+    val vaultPage: StateFlow<Int> = _vaultPage.asStateFlow()
+    
+    private val _vaultHasMore = MutableStateFlow(false)
+    val vaultHasMore: StateFlow<Boolean> = _vaultHasMore.asStateFlow()
+    
+    private val _allVaultItems = MutableStateFlow<List<DestinyItem>>(emptyList())
+    
+    companion object {
+        const val VAULT_PAGE_SIZE = 15
+    }
 
     sealed class ItemSelectorUiState {
         object Loading : ItemSelectorUiState()
@@ -39,8 +61,15 @@ class ItemSelectorViewModel(
         data class Error(val message: String) : ItemSelectorUiState()
     }
 
-    init {
-        loadItems()
+    /**
+     * Update character ID and reload items
+     */
+    fun updateCharacterId(newCharacterId: String) {
+        if (currentCharacterId != newCharacterId) {
+            android.util.Log.d("ItemSelectorVM", "🔄 Switching character from $currentCharacterId to $newCharacterId")
+            currentCharacterId = newCharacterId
+            loadItems()
+        }
     }
 
     /**
@@ -48,47 +77,171 @@ class ItemSelectorViewModel(
      */
     fun loadItems() {
         viewModelScope.launch {
+            _isLoading.value = true
             _uiState.value = ItemSelectorUiState.Loading
 
             try {
+                android.util.Log.d("ItemSelectorVM", "📡 Loading items for character $currentCharacterId...")
+
                 // Load equipped items
-                loadoutRepository.getEquippedItemsForCharacter(characterId).fold(
+                loadoutRepository.getEquippedItemsForCharacter(currentCharacterId).fold(
                     onSuccess = { items ->
                         android.util.Log.d("ItemSelectorVM", "✅ Loaded ${items.size} equipped items")
                         _equippedItems.value = items
                     },
                     onFailure = { error ->
                         android.util.Log.e("ItemSelectorVM", "❌ Failed to load equipped items: ${error.message}")
+                        _equippedItems.value = emptyList()
                     }
                 )
 
                 // Load inventory items
-                loadoutRepository.getInventoryItemsForCharacter(characterId).fold(
+                loadoutRepository.getInventoryItemsForCharacter(currentCharacterId).fold(
                     onSuccess = { items ->
                         android.util.Log.d("ItemSelectorVM", "✅ Loaded ${items.size} inventory items")
                         _inventoryItems.value = items
                     },
                     onFailure = { error ->
                         android.util.Log.e("ItemSelectorVM", "❌ Failed to load inventory: ${error.message}")
+                        _inventoryItems.value = emptyList()
                     }
                 )
 
-                // Load vault items
-                loadoutRepository.getVaultItems().fold(
+                // Load vault items with pagination from local database
+                loadoutRepository.getVaultItemsFromDatabase().fold(
                     onSuccess = { items ->
-                        android.util.Log.d("ItemSelectorVM", "✅ Loaded ${items.size} vault items")
-                        _vaultItems.value = items
+                        android.util.Log.d("ItemSelectorVM", "✅ Loaded ${items.size} vault items from DB")
+                        _allVaultItems.value = items
+                        _vaultPage.value = 0
+                        updateVaultItemsForPage()
                     },
                     onFailure = { error ->
-                        android.util.Log.e("ItemSelectorVM", "❌ Failed to load vault: ${error.message}")
+                        android.util.Log.e("ItemSelectorVM", "❌ Failed to load vault from DB: ${error.message}")
+                        // Fallback to empty list
+                        _allVaultItems.value = emptyList()
+                        _vaultItems.value = emptyList()
                     }
                 )
 
                 _uiState.value = ItemSelectorUiState.Success
+                android.util.Log.d("ItemSelectorVM", "✅ All items loaded successfully")
             } catch (e: Exception) {
                 android.util.Log.e("ItemSelectorVM", "❌ Exception loading items", e)
                 _uiState.value = ItemSelectorUiState.Error(e.message ?: "Failed to load items")
+            } finally {
+                _isLoading.value = false
             }
+        }
+    }
+    
+    /**
+     * Refresh all items (for pull-to-refresh)
+     */
+    fun refreshItems() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            loadItems()
+            _isRefreshing.value = false
+        }
+    }
+    
+    /**
+     * Sync vault from API to local database
+     * Fetches all vault items from Bungie API and stores them locally
+     */
+    fun syncVaultFromAPI() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            _uiState.value = ItemSelectorUiState.Loading
+            
+            android.util.Log.d("ItemSelectorVM", "🔄 Syncing vault from API...")
+            
+            loadoutRepository.syncVaultToDatabase().fold(
+                onSuccess = { count ->
+                    android.util.Log.d("ItemSelectorVM", "✅ Synced $count vault items")
+                    // Reload vault items from database
+                    loadoutRepository.getVaultItemsFromDatabase().fold(
+                        onSuccess = { items ->
+                            _allVaultItems.value = items
+                            _vaultPage.value = 0
+                            updateVaultItemsForPage()
+                            _uiState.value = ItemSelectorUiState.Success
+                        },
+                        onFailure = { error ->
+                            android.util.Log.e("ItemSelectorVM", "❌ Failed to reload vault after sync: ${error.message}")
+                            _uiState.value = ItemSelectorUiState.Error(error.message ?: "Failed to reload vault")
+                        }
+                    )
+                },
+                onFailure = { error ->
+                    android.util.Log.e("ItemSelectorVM", "❌ Failed to sync vault: ${error.message}")
+                    _uiState.value = ItemSelectorUiState.Error(error.message ?: "Failed to sync vault")
+                }
+            )
+            
+            _isRefreshing.value = false
+        }
+    }
+    
+    /**
+     * Load only vault items (for vault tab refresh button)
+     * @deprecated Use syncVaultFromAPI() instead
+     */
+    fun loadVaultItems() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            _vaultPage.value = 0 // Reset page
+            
+            loadoutRepository.getVaultItemsFromDatabase().fold(
+                onSuccess = { items ->
+                    android.util.Log.d("ItemSelectorVM", "✅ Reloaded ${items.size} vault items from DB")
+                    _allVaultItems.value = items
+                    updateVaultItemsForPage()
+                },
+                onFailure = { error ->
+                    android.util.Log.e("ItemSelectorVM", "❌ Failed to reload vault: ${error.message}")
+                }
+            )
+            
+            _isRefreshing.value = false
+        }
+    }
+    
+    /**
+     * Load next page of vault items
+     */
+    fun loadNextVaultPage() {
+        if (_vaultHasMore.value) {
+            _vaultPage.value += 1
+            updateVaultItemsForPage()
+        }
+    }
+    
+    /**
+     * Load previous page of vault items
+     */
+    fun loadPreviousVaultPage() {
+        if (_vaultPage.value > 0) {
+            _vaultPage.value -= 1
+            updateVaultItemsForPage()
+        }
+    }
+    
+    /**
+     * Update displayed vault items based on current page
+     */
+    private fun updateVaultItemsForPage() {
+        val allItems = _allVaultItems.value
+        val startIndex = _vaultPage.value * VAULT_PAGE_SIZE
+        val endIndex = minOf(startIndex + VAULT_PAGE_SIZE, allItems.size)
+        
+        if (startIndex < allItems.size) {
+            _vaultItems.value = allItems.subList(startIndex, endIndex)
+            _vaultHasMore.value = endIndex < allItems.size
+            android.util.Log.d("ItemSelectorVM", "📖 Page ${_vaultPage.value}: showing items $startIndex-$endIndex of ${allItems.size}")
+        } else {
+            _vaultItems.value = emptyList()
+            _vaultHasMore.value = false
         }
     }
 

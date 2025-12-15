@@ -12,7 +12,8 @@ data class DestinyItem(
     val transferStatus: Int = 0,
     val lockable: Boolean = true,
     val state: Int = 0,
-    val cosmetics: ItemCosmetics? = null // Weapon/armor ornament and shader
+    val cosmetics: ItemCosmetics? = null, // Weapon/armor ornament and shader
+    val iconUrl: String? = null // Icon path from Bungie CDN
 )
 
 enum class ItemLocation {

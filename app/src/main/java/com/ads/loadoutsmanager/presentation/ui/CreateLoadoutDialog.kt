@@ -9,6 +9,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ads.loadoutsmanager.data.api.ManifestService
 import com.ads.loadoutsmanager.data.model.DestinyItem
 import com.ads.loadoutsmanager.data.model.DestinyLoadout
 import com.ads.loadoutsmanager.data.repository.LoadoutRepository
@@ -23,6 +24,7 @@ import java.util.UUID
 fun CreateLoadoutDialog(
     characterId: String,
     loadoutRepository: LoadoutRepository,
+    manifestService: ManifestService,
     existingLoadout: DestinyLoadout? = null,
     onConfirm: (DestinyLoadout) -> Unit,
     onDismiss: () -> Unit,
@@ -48,6 +50,15 @@ fun CreateLoadoutDialog(
     val inventoryItems by itemSelectorViewModel.inventoryItems.collectAsState()
     val vaultItems by itemSelectorViewModel.vaultItems.collectAsState()
     val itemSelectorState by itemSelectorViewModel.uiState.collectAsState()
+    val vaultPage by itemSelectorViewModel.vaultPage.collectAsState()
+    val vaultHasMore by itemSelectorViewModel.vaultHasMore.collectAsState()
+    val isLoading by itemSelectorViewModel.isLoading.collectAsState()
+    
+    // Update character ID and load items when dialog opens or character changes
+    LaunchedEffect(characterId) {
+        itemSelectorViewModel.updateCharacterId(characterId)
+        itemSelectorViewModel.loadItems()
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -56,17 +67,37 @@ fun CreateLoadoutDialog(
                 .fillMaxHeight(0.8f),
             shape = MaterialTheme.shapes.large
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                // Header
-                Text(
-                    text = if (existingLoadout != null) "Edit Loadout" else "Create Loadout",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+            if (isLoading) {
+                // Show loading while items are being fetched
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading items...",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            } else {
+                // Show dialog content when items are loaded
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    // Header
+                    Text(
+                        text = if (existingLoadout != null) "Edit Loadout" else "Create Loadout",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -185,6 +216,8 @@ fun CreateLoadoutDialog(
             }
         }
     }
+    // Close the if/else for loading state
+    }
 
     var selectedItemForDetails by remember { mutableStateOf<DestinyItem?>(null) }
 
@@ -196,6 +229,8 @@ fun CreateLoadoutDialog(
             inventoryItems = inventoryItems,
             vaultItems = vaultItems,
             selectedItems = selectedItems,
+            vaultPage = vaultPage,
+            vaultHasMore = vaultHasMore,
             onItemToggle = { item ->
                 val newSelection = selectedItems.toMutableList()
                 val existingIndex = newSelection.indexOfFirst {
@@ -211,9 +246,14 @@ fun CreateLoadoutDialog(
             onItemClick = { item ->
                 selectedItemForDetails = item
             },
-            onLoadVault = {
-                // Trigger vault reload
-                itemSelectorViewModel.loadItems()
+            onNextVaultPage = {
+                itemSelectorViewModel.loadNextVaultPage()
+            },
+            onPreviousVaultPage = {
+                itemSelectorViewModel.loadPreviousVaultPage()
+            },
+            onSyncVault = {
+                itemSelectorViewModel.syncVaultFromAPI()
             },
             onConfirm = {
                 showItemSelector = false
@@ -228,7 +268,7 @@ fun CreateLoadoutDialog(
     selectedItemForDetails?.let { item ->
         ItemDetailDialog(
             item = item,
-            itemDetails = null, // TODO: Fetch from manifest/API
+            manifestService = manifestService,
             onDismiss = { selectedItemForDetails = null }
         )
     }

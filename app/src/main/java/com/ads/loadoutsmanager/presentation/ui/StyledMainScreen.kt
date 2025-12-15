@@ -36,6 +36,7 @@ fun StyledMainScreen(
     displayName: String,
     loadoutViewModel: LoadoutViewModel,
     loadoutRepository: com.ads.loadoutsmanager.data.repository.LoadoutRepository,
+    manifestService: com.ads.loadoutsmanager.data.api.ManifestService,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -47,6 +48,7 @@ fun StyledMainScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var loadoutToEdit by remember { mutableStateOf<DestinyLoadout?>(null) }
     var showDeleteConfirmation by remember { mutableStateOf<DestinyLoadout?>(null) }
+    var loadoutToView by remember { mutableStateOf<DestinyLoadout?>(null) }
 
     Scaffold(
         modifier = modifier,
@@ -149,15 +151,43 @@ fun StyledMainScreen(
                             if (loadouts.isEmpty()) {
                                 StyledEmptyLoadoutsState()
                             } else {
-                                StyledLoadoutsList(
-                                    loadouts = loadouts,
-                                    onEquipLoadout = { loadoutViewModel.equipLoadout(it) },
-                                    onEditLoadout = { loadout ->
-                                        loadoutToEdit = loadout
-                                        showCreateDialog = true
-                                    },
-                                    onDeleteLoadout = { showDeleteConfirmation = it }
-                                )
+                                Column {
+                                    // Header with refresh button
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "LOADOUTS",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = DestinyGold,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        IconButton(
+                                            onClick = { loadoutViewModel.loadCharacters() }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Refresh,
+                                                contentDescription = "Reload",
+                                                tint = DestinyGold
+                                            )
+                                        }
+                                    }
+                                    
+                                    StyledLoadoutsList(
+                                        loadouts = loadouts,
+                                        onEquipLoadout = { loadoutViewModel.equipLoadout(it) },
+                                        onEditLoadout = { loadout ->
+                                            loadoutToEdit = loadout
+                                            showCreateDialog = true
+                                        },
+                                        onDeleteLoadout = { showDeleteConfirmation = it },
+                                        onViewLoadout = { loadoutToView = it }
+                                    )
+                                }
                             }
                         }
                     } else {
@@ -182,6 +212,7 @@ fun StyledMainScreen(
         CreateLoadoutDialog(
             characterId = selectedCharacter!!.characterId,
             loadoutRepository = loadoutRepository,
+            manifestService = manifestService,
             existingLoadout = loadoutToEdit,
             onConfirm = { loadout ->
                 if (loadoutToEdit != null) {
@@ -222,6 +253,29 @@ fun StyledMainScreen(
                 TextButton(onClick = { showDeleteConfirmation = null }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+
+    // Loadout detail dialog
+    loadoutToView?.let { loadout ->
+        LoadoutDetailDialog(
+            loadout = loadout,
+            onEdit = {
+                loadoutToView = null
+                loadoutToEdit = loadout
+                showCreateDialog = true
+            },
+            onEquip = {
+                loadoutToView = null
+                loadoutViewModel.equipLoadout(loadout)
+            },
+            onDelete = {
+                loadoutToView = null
+                showDeleteConfirmation = loadout
+            },
+            onDismiss = {
+                loadoutToView = null
             }
         )
     }
@@ -411,7 +465,8 @@ private fun StyledLoadoutsList(
     loadouts: List<DestinyLoadout>,
     onEquipLoadout: (DestinyLoadout) -> Unit,
     onEditLoadout: (DestinyLoadout) -> Unit,
-    onDeleteLoadout: (DestinyLoadout) -> Unit
+    onDeleteLoadout: (DestinyLoadout) -> Unit,
+    onViewLoadout: (DestinyLoadout) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -442,6 +497,7 @@ private fun StyledLoadoutsList(
         items(loadouts) { loadout ->
             StyledLoadoutCard(
                 loadout = loadout,
+                onView = { onViewLoadout(loadout) },
                 onEquip = { onEquipLoadout(loadout) },
                 onEdit = { onEditLoadout(loadout) },
                 onDelete = { onDeleteLoadout(loadout) }
@@ -453,12 +509,13 @@ private fun StyledLoadoutsList(
 @Composable
 private fun StyledLoadoutCard(
     loadout: DestinyLoadout,
+    onView: () -> Unit,
     onEquip: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onView),
         colors = CardDefaults.cardColors(
             containerColor = if (loadout.isEquipped)
                 DestinyMediumGray

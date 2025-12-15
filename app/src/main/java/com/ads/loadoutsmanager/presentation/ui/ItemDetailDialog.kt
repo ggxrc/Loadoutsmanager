@@ -19,8 +19,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ads.loadoutsmanager.data.api.ManifestService
 import com.ads.loadoutsmanager.data.model.*
 import com.ads.loadoutsmanager.presentation.ui.theme.*
+import com.ads.loadoutsmanager.presentation.viewmodel.ItemDetailViewModel
 
 /**
  * Detailed view of an item showing all stats, perks, and info
@@ -30,10 +33,20 @@ import com.ads.loadoutsmanager.presentation.ui.theme.*
 @Composable
 fun ItemDetailDialog(
     item: DestinyItem,
-    itemDetails: ItemDetails?,
+    manifestService: ManifestService,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val itemDetailViewModel: ItemDetailViewModel = viewModel(
+        factory = ItemDetailViewModel.Factory(
+            manifestService = manifestService,
+            itemHash = item.itemHash
+        )
+    )
+    
+    val itemDetails by itemDetailViewModel.itemDetails.collectAsState()
+    val uiState by itemDetailViewModel.uiState.collectAsState()
+    
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -74,7 +87,8 @@ fun ItemDetailDialog(
                     }
                 }
 
-                if (itemDetails != null) {
+                val details = itemDetails
+                if (details != null) {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
@@ -83,13 +97,13 @@ fun ItemDetailDialog(
                     ) {
                         // Item header with name and power
                         item {
-                            ItemHeaderSection(itemDetails)
+                            ItemHeaderSection(details)
                         }
 
                         // Item description
                         item {
                             Text(
-                                text = itemDetails.description,
+                                text = details.description,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Color.LightGray,
                                 lineHeight = 20.sp
@@ -98,26 +112,28 @@ fun ItemDetailDialog(
 
                         // Stats section
                         item {
-                            StatsSection(itemDetails.stats)
+                            StatsSection(details.stats)
                         }
 
                         // Perks section
-                        if (!itemDetails.perks.isNullOrEmpty()) {
+                        val itemPerks = details.perks
+                        if (!itemPerks.isNullOrEmpty()) {
                             item {
-                                PerksSection(itemDetails.perks)
+                                PerksSection(itemPerks)
                             }
                         }
 
                         // Sockets section
-                        if (!itemDetails.sockets.isNullOrEmpty()) {
+                        val itemSockets = details.sockets
+                        if (!itemSockets.isNullOrEmpty()) {
                             item {
-                                SocketsSection(itemDetails.sockets)
+                                SocketsSection(itemSockets)
                             }
                         }
 
                         // Additional info
                         item {
-                            AdditionalInfoSection(itemDetails)
+                            AdditionalInfoSection(details)
                         }
                     }
                 } else {

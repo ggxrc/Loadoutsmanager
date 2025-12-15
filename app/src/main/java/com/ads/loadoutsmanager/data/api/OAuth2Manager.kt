@@ -109,18 +109,22 @@ class OAuth2Manager(
 
         authorizationService.performTokenRequest(tokenRequest, clientAuthentication) { tokenResponse, exception ->
             if (tokenResponse != null && tokenResponse.accessToken != null) {
-                // Update stored tokens
-                tokenResponse.refreshToken?.let { newRefreshToken ->
-                    tokenStorage.saveTokens(
-                        accessToken = tokenResponse.accessToken!!,
-                        refreshToken = newRefreshToken,
-                        expiresIn = tokenResponse.accessTokenExpirationTime?.let {
-                            (it - System.currentTimeMillis()) / 1000
-                        } ?: 3600
-                    )
-                }
+                // Update stored tokens - always save the new access token
+                val currentRefreshToken = tokenStorage.getRefreshToken() ?: refreshToken
+                val newRefreshToken = tokenResponse.refreshToken ?: currentRefreshToken
+                
+                tokenStorage.saveTokens(
+                    accessToken = tokenResponse.accessToken!!,
+                    refreshToken = newRefreshToken,
+                    expiresIn = tokenResponse.accessTokenExpirationTime?.let {
+                        (it - System.currentTimeMillis()) / 1000
+                    } ?: 3600
+                )
+                
+                android.util.Log.d("OAuth2Manager", "✅ Tokens updated - Access: ${tokenResponse.accessToken?.take(20)}..., Refresh: ${newRefreshToken.take(20)}...")
                 callback(tokenResponse.accessToken, null)
             } else {
+                android.util.Log.e("OAuth2Manager", "❌ Token refresh failed: ${exception?.message}")
                 callback(null, exception)
             }
         }

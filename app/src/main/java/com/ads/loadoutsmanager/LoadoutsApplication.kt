@@ -61,6 +61,7 @@ class LoadoutsApplication : Application() {
     fun createLoadoutRepository(membershipType: Int, membershipId: String): LoadoutRepository {
         return LoadoutRepository(
             bungieApiService = bungieApiService,
+            manifestService = manifestService,
             database = database,
             membershipType = membershipType,
             membershipId = membershipId

@@ -16,6 +16,7 @@ data class ItemEntity(
     val itemHash: Long,
     val bucketHash: Long,
     val location: ItemLocation,
+    val iconUrl: String? = null,
     val transferStatus: Int = 0,
     val lockable: Boolean = true,
     val state: Int = 0,

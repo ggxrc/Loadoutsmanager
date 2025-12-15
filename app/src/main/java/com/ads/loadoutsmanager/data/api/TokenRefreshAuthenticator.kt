@@ -20,13 +20,27 @@ class TokenRefreshAuthenticator(
 ) : Authenticator {
     
     override fun authenticate(route: Route?, response: Response): Request? {
+        android.util.Log.d("TokenRefreshAuthenticator", "🔄 Authenticator called for ${response.request.url}")
+        
         // If already tried to refresh, don't try again
-        if (response.request.header("Authorization") != response.request.header("X-Retried-Authorization")) {
+        val authHeader = response.request.header("Authorization")
+        val retryHeader = response.request.header("X-Retried-Authorization")
+        
+        android.util.Log.d("TokenRefreshAuthenticator", "Headers - Auth: ${authHeader?.take(20)}..., Retry: ${retryHeader?.take(20)}...")
+        
+        if (authHeader == retryHeader) {
+            android.util.Log.w("TokenRefreshAuthenticator", "🚫 Already tried refresh, giving up")
             return null
         }
         
         // Get refresh token
-        val refreshToken = tokenStorage.getRefreshToken() ?: return null
+        val refreshToken = tokenStorage.getRefreshToken()
+        if (refreshToken == null) {
+            android.util.Log.e("TokenRefreshAuthenticator", "❌ No refresh token available")
+            return null
+        }
+        
+        android.util.Log.d("TokenRefreshAuthenticator", "🔄 Attempting token refresh...")
         
         // Try to refresh synchronously (we're already on background thread)
         var newAccessToken: String? = null
@@ -38,7 +52,9 @@ class TokenRefreshAuthenticator(
             ) { accessToken, exception ->
                 if (accessToken != null) {
                     newAccessToken = accessToken
+                    android.util.Log.d("TokenRefreshAuthenticator", "✅ Token refresh successful")
                 } else {
+                    android.util.Log.e("TokenRefreshAuthenticator", "❌ Token refresh failed: ${exception?.message}")
                     // Refresh failed, user needs to re-authenticate
                     tokenStorage.clearTokens()
                 }
@@ -47,10 +63,14 @@ class TokenRefreshAuthenticator(
         
         // If we got a new token, retry the request with it
         return newAccessToken?.let { token ->
+            android.util.Log.d("TokenRefreshAuthenticator", "🔄 Retrying request with new token")
             response.request.newBuilder()
                 .header("Authorization", "Bearer $token")
                 .header("X-Retried-Authorization", "Bearer $token")
                 .build()
+        } ?: run {
+            android.util.Log.w("TokenRefreshAuthenticator", "⚠️ No new token, cannot retry")
+            null
         }
     }
 }

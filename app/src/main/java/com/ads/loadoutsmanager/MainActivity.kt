@@ -95,6 +95,7 @@ fun LoadoutsManagerApp(authViewModel: AuthViewModel) {
                         displayName = state.displayName,
                         loadoutViewModel = loadoutViewModel,
                         loadoutRepository = loadoutRepository,
+                        manifestService = app.manifestService,
                         onLogout = {
                             authViewModel.logout()
                         },

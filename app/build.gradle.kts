@@ -99,6 +99,9 @@ dependencies {
     // Security for encrypted storage
     implementation(libs.androidx.security.crypto)
     
+    // Coil for image loading
+    implementation(libs.coil.compose)
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

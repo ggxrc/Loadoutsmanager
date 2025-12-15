@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
 import com.ads.loadoutsmanager.data.model.DestinyItem
 import com.ads.loadoutsmanager.data.model.ItemCategory
 import com.ads.loadoutsmanager.data.model.ItemLocation
@@ -47,7 +49,11 @@ fun ItemSelectorDialog(
     selectedItems: List<DestinyItem>,
     onItemToggle: (DestinyItem) -> Unit,
     onItemClick: (DestinyItem) -> Unit,
-    onLoadVault: () -> Unit,
+    vaultPage: Int = 0,
+    vaultHasMore: Boolean = false,
+    onNextVaultPage: () -> Unit = {},
+    onPreviousVaultPage: () -> Unit = {},
+    onSyncVault: () -> Unit = {},
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -72,7 +78,9 @@ fun ItemSelectorDialog(
                 // Header
                 ItemSelectorHeader(
                     selectedCount = selectedItems.size,
-                    onDismiss = onDismiss
+                    onDismiss = onDismiss,
+                    showVaultSync = selectedLocation == 2,
+                    onSyncVault = onSyncVault
                 )
 
                 // Location tabs (Equipped/Inventory/Vault)
@@ -81,8 +89,7 @@ fun ItemSelectorDialog(
                     onTabSelected = { selectedLocation = it },
                     equippedCount = equippedItems.size,
                     inventoryCount = inventoryItems.size,
-                    vaultCount = vaultItems.size,
-                    onLoadVault = onLoadVault
+                    vaultCount = vaultItems.size
                 )
 
                 // Category selector (Weapons/Armor)
@@ -107,6 +114,17 @@ fun ItemSelectorDialog(
                         onItemClick = onItemClick
                     )
                 }
+                
+                // Vault pagination controls
+                if (selectedLocation == 2 && (vaultPage > 0 || vaultHasMore)) {
+                    VaultPaginationControls(
+                        currentPage = vaultPage,
+                        hasPrevious = vaultPage > 0,
+                        hasNext = vaultHasMore,
+                        onPrevious = onPreviousVaultPage,
+                        onNext = onNextVaultPage
+                    )
+                }
 
                 // Action buttons
                 ActionButtons(
@@ -122,7 +140,9 @@ fun ItemSelectorDialog(
 @Composable
 private fun ItemSelectorHeader(
     selectedCount: Int,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    showVaultSync: Boolean = false,
+    onSyncVault: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -156,12 +176,36 @@ private fun ItemSelectorHeader(
                 )
             }
 
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = Color.White
-                )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Sync vault button (only show when vault tab is active)
+                if (showVaultSync) {
+                    OutlinedButton(
+                        onClick = onSyncVault,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = DestinyGold
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DestinyGold)
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Sync Vault",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("SYNC VAULT")
+                    }
+                }
+                
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White
+                    )
+                }
             }
         }
     }
@@ -173,8 +217,7 @@ private fun LocationTabs(
     onTabSelected: (Int) -> Unit,
     equippedCount: Int,
     inventoryCount: Int,
-    vaultCount: Int,
-    onLoadVault: () -> Unit
+    vaultCount: Int
 ) {
     Row(
         modifier = Modifier
@@ -199,32 +242,13 @@ private fun LocationTabs(
             modifier = Modifier.weight(1f)
         )
 
-        Box(modifier = Modifier.weight(1f)) {
-            LocationTab(
-                text = "VAULT",
-                count = vaultCount,
-                selected = selectedTab == 2,
-                onClick = { onTabSelected(2) },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Refresh vault button
-            if (selectedTab == 2) {
-                IconButton(
-                    onClick = onLoadVault,
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Refresh Vault",
-                        tint = DestinyGold,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
+        LocationTab(
+            text = "VAULT",
+            count = vaultCount,
+            selected = selectedTab == 2,
+            onClick = { onTabSelected(2) },
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -500,29 +524,39 @@ private fun ItemCard(
                     .background(DestinyMediumGray),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    // Icon based on bucket
-                    Text(
-                        text = getItemIcon(item.bucketHash),
-                        fontSize = 32.sp
+                if (item.iconUrl != null) {
+                    AsyncImage(
+                        model = "https://www.bungie.net${item.iconUrl}",
+                        contentDescription = getItemNameFromBucket(item.bucketHash),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
+                } else {
+                    // Fallback to icon
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        // Icon based on bucket
+                        Text(
+                            text = getItemIcon(item.bucketHash),
+                            fontSize = 32.sp
+                        )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                    // Item name (truncated)
-                    Text(
-                        text = getItemNameFromBucket(item.bucketHash),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
+                        // Item name (truncated)
+                        Text(
+                            text = getItemNameFromBucket(item.bucketHash),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
                 }
             }
 
@@ -618,6 +652,72 @@ private fun ActionButtons(
                     text = "ADD TO LOADOUT ($selectedCount)",
                     fontWeight = FontWeight.Bold
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VaultPaginationControls(
+    currentPage: Int,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = DestinyMediumGray,
+        tonalElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Previous button
+            OutlinedButton(
+                onClick = onPrevious,
+                enabled = hasPrevious,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = DestinyGold,
+                    disabledContentColor = Color.Gray
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (hasPrevious) DestinyGold else Color.Gray
+                )
+            ) {
+                Text("◀ PREVIOUS")
+            }
+            
+            // Page indicator
+            Text(
+                text = "Page ${currentPage + 1}",
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = DestinyGold,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall
+            )
+            
+            // Next button
+            OutlinedButton(
+                onClick = onNext,
+                enabled = hasNext,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = DestinyGold,
+                    disabledContentColor = Color.Gray
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (hasNext) DestinyGold else Color.Gray
+                )
+            ) {
+                Text("NEXT ▶")
             }
         }
     }

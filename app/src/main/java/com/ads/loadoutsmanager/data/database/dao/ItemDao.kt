@@ -36,4 +36,17 @@ interface ItemDao {
     
     @Query("DELETE FROM items")
     suspend fun deleteAllItems()
+    
+    // Vault-specific queries
+    @Query("SELECT * FROM items WHERE location = 'VAULT'")
+    suspend fun getVaultItems(): List<ItemEntity>
+    
+    @Query("SELECT * FROM items WHERE location = 'VAULT'")
+    fun getVaultItemsFlow(): Flow<List<ItemEntity>>
+    
+    @Query("DELETE FROM items WHERE location = 'VAULT'")
+    suspend fun deleteAllVaultItems()
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun syncVaultItems(items: List<ItemEntity>)
 }

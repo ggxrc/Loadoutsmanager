@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.ads.loadoutsmanager.data.model.DestinyItem
 import com.ads.loadoutsmanager.ui.theme.UIColors
 
@@ -46,13 +47,22 @@ fun ItemCard(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        // TODO: Load item icon from Bungie API or manifest
-        // For now, show a placeholder
-        Text(
-            text = "ITEM",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-        )
+        // Load item icon from Bungie CDN
+        if (item.iconUrl != null) {
+            AsyncImage(
+                model = "https://www.bungie.net${item.iconUrl}",
+                contentDescription = "Item icon",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            // Fallback placeholder
+            Text(
+                text = "ITEM",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
         
         // Show cosmetics indicator if item has ornament or shader
         if (item.cosmetics != null) {
@@ -111,11 +121,20 @@ fun ItemDetailSheet(
                     .align(Alignment.CenterHorizontally),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "ITEM",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+                if (item.iconUrl != null) {
+                    AsyncImage(
+                        model = "https://www.bungie.net${item.iconUrl}",
+                        contentDescription = "Item icon",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = "ITEM",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(24.dp))

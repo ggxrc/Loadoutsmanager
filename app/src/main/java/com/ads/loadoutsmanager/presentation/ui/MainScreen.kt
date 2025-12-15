@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +29,7 @@ fun MainScreen(
     displayName: String,
     loadoutViewModel: LoadoutViewModel,
     loadoutRepository: com.ads.loadoutsmanager.data.repository.LoadoutRepository,
+    manifestService: com.ads.loadoutsmanager.data.api.ManifestService,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -113,15 +115,38 @@ fun MainScreen(
                         if (loadouts.isEmpty()) {
                             EmptyLoadoutsState()
                         } else {
-                            LoadoutsList(
-                                loadouts = loadouts,
-                                onEquipLoadout = { loadoutViewModel.equipLoadout(it) },
-                                onEditLoadout = { loadout ->
-                                    loadoutToEdit = loadout
-                                    showCreateDialog = true
-                                },
-                                onDeleteLoadout = { loadoutViewModel.deleteLoadout(it.id) }
-                            )
+                            Column {
+                                // Header with refresh button
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Loadouts",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    IconButton(
+                                        onClick = { loadoutViewModel.loadCharacters() }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Refresh,
+                                            contentDescription = "Reload"
+                                        )
+                                    }
+                                }
+                                
+                                LoadoutsList(
+                                    loadouts = loadouts,
+                                    onEquipLoadout = { loadoutViewModel.equipLoadout(it) },
+                                    onEditLoadout = { loadout ->
+                                        loadoutToEdit = loadout
+                                        showCreateDialog = true
+                                    },
+                                    onDeleteLoadout = { loadoutViewModel.deleteLoadout(it.id) }
+                                )
+                            }
                         }
                     } else {
                         Text(
@@ -140,6 +165,7 @@ fun MainScreen(
         CreateLoadoutDialog(
             characterId = selectedCharacter!!.characterId,
             loadoutRepository = loadoutRepository,
+            manifestService = manifestService,
             existingLoadout = loadoutToEdit,
             onConfirm = { loadout ->
                 if (loadoutToEdit != null) {

@@ -58,6 +58,7 @@ Android application for managing Destiny 2 loadouts using the Bungie.net API.
 5.  **DI**: Update `LoadoutsApplication` or ViewModel Factory if new dependencies are needed.
 
 ### Debugging
+- **after implementing a feature**: For each new feature, build and run the app to ensure no runtime errors.
 - **Logs**: Use `Log.d("Tag", "Message")`.
 - **Network**: OkHttp logging interceptor is enabled in debug builds. Check Logcat for raw JSON responses.
 - **Auth Issues**: Check `AuthViewModel` logs and ensure `local.properties` is correct.

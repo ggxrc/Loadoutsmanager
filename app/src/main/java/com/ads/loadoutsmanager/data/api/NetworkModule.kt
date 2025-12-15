@@ -53,6 +53,10 @@ object NetworkModule {
             android.util.Log.d("NetworkModule", "📥 RESPONSE: ${response.code} ${request.url}")
             if (!response.isSuccessful) {
                 android.util.Log.e("NetworkModule", "❌ HTTP ${response.code}: ${response.message}")
+                // Log if this is a 401 that should trigger refresh
+                if (response.code == 401) {
+                    android.util.Log.w("NetworkModule", "🚨 401 Unauthorized - Authenticator should handle refresh")
+                }
             }
 
             response
