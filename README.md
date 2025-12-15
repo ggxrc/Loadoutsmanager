@@ -31,12 +31,14 @@ Android application for managing Destiny 2 loadouts using the Bungie.net API.
 
 ### App Configuration
 
-1. Open `app/src/main/java/com/ads/loadoutsmanager/data/api/BungieConfig.kt`
-2. Replace the placeholder values:
-   ```kotlin
-   const val API_KEY = "your_actual_api_key"
-   const val CLIENT_ID = "your_actual_client_id"
+1. Copy `local.properties.example` to `local.properties`
+2. Replace the placeholder values with your actual Bungie API credentials:
+   ```properties
+   bungie.api.key=YOUR_ACTUAL_API_KEY
+   bungie.client.id=YOUR_ACTUAL_CLIENT_ID
+   bungie.client.secret=YOUR_ACTUAL_CLIENT_SECRET
    ```
+3. Ensure the Android SDK path is correct for your system
 
 ## Architecture
 
