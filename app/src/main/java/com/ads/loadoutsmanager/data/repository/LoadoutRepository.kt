@@ -6,6 +6,7 @@ import com.ads.loadoutsmanager.data.api.TransferItemRequest
 import com.ads.loadoutsmanager.data.database.LoadoutsDatabase
 import com.ads.loadoutsmanager.data.database.toEntity
 import com.ads.loadoutsmanager.data.database.toDomain
+import com.ads.loadoutsmanager.data.model.DestinyComponents
 import com.ads.loadoutsmanager.data.model.DestinyLoadout
 import com.ads.loadoutsmanager.data.model.DestinyItem
 import com.ads.loadoutsmanager.data.model.ItemLocation
@@ -135,9 +136,9 @@ class LoadoutRepository(
                             membershipType = membershipType
                         )
                         val response = bungieApiService.transferItem(transferRequest)
-                        if (!response.isSuccessful || response.body()?.ErrorCode != 1) {
+                        if (response.isError) {
                             return@withContext Result.failure(
-                                Exception("Failed to transfer item from vault: ${response.body()?.ErrorStatus}")
+                                Exception("Failed to transfer item from vault: ${response.ErrorStatus}")
                             )
                         }
                     }
@@ -153,13 +154,13 @@ class LoadoutRepository(
             )
             
             val response = bungieApiService.equipItems(equipRequest)
-            if (response.isSuccessful && response.body()?.ErrorCode == 1) {
+            if (response.isSuccess) {
                 // Update loadout status in database
                 val updatedLoadout = loadout.copy(isEquipped = true)
                 updateLoadout(updatedLoadout)
                 Result.success(true)
             } else {
-                Result.failure(Exception("Failed to equip loadout: ${response.body()?.ErrorStatus}"))
+                Result.failure(Exception("Failed to equip loadout: ${response.ErrorStatus}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -190,8 +191,8 @@ class LoadoutRepository(
     private suspend fun transferItemBetweenCharacters(
         item: DestinyItem,
         targetCharacterId: String
-    ): Result<Boolean> {
-        return try {
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
             // TODO: Track source character ID properly
             // For now, this is a placeholder that would need to be enhanced
             // to properly track which character currently has the item
@@ -209,9 +210,9 @@ class LoadoutRepository(
                 membershipType = membershipType
             )
             val toVaultResponse = bungieApiService.transferItem(toVaultRequest)
-            if (!toVaultResponse.isSuccessful || toVaultResponse.body()?.ErrorCode != 1) {
-                return Result.failure(
-                    Exception("Failed to transfer item to vault: ${toVaultResponse.body()?.ErrorStatus}")
+            if (toVaultResponse.isError) {
+                return@withContext Result.failure(
+                    Exception("Failed to transfer item to vault: ${toVaultResponse.ErrorStatus}")
                 )
             }
             
@@ -225,15 +226,15 @@ class LoadoutRepository(
                 membershipType = membershipType
             )
             val toCharacterResponse = bungieApiService.transferItem(toCharacterRequest)
-            if (toCharacterResponse.isSuccessful && toCharacterResponse.body()?.ErrorCode == 1) {
-                Result.success(true)
+            if (toCharacterResponse.isSuccess) {
+                return@withContext Result.success(true)
             } else {
-                Result.failure(
-                    Exception("Failed to transfer item to character: ${toCharacterResponse.body()?.ErrorStatus}")
+                return@withContext Result.failure(
+                    Exception("Failed to transfer item to character: ${toCharacterResponse.ErrorStatus}")
                 )
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            return@withContext Result.failure(e)
         }
     }
     
@@ -253,9 +254,9 @@ class LoadoutRepository(
                     membershipType = membershipType
                 )
                 val response = bungieApiService.transferItem(transferRequest)
-                if (!response.isSuccessful || response.body()?.ErrorCode != 1) {
+                if (response.isError) {
                     return@withContext Result.failure(
-                        Exception("Failed to transfer item to vault: ${response.body()?.ErrorStatus}")
+                        Exception("Failed to transfer item: ${response.ErrorStatus}")
                     )
                 }
             }
@@ -280,18 +281,18 @@ class LoadoutRepository(
                 membershipType = membershipType,
                 destinyMembershipId = membershipId,
                 characterId = characterId,
-                components = "205" // CharacterEquipment component
+                components = "205,300,305" // CharacterEquipment, ItemInstances, ItemSockets
             )
             
-            if (response.isSuccessful && response.body()?.ErrorCode == 1) {
-                // TODO: Parse equipped items from response.body()?.Response?.equipment?.data
+            if (response.isSuccess) {
+                // TODO: Parse equipped items from response.Response?.equipment?.data
                 // The actual parsing would depend on the Bungie API response structure
                 // For now, return empty list as placeholder
                 // Future implementation should deserialize the equipment data into DestinyItem objects
                 val items = listOf<DestinyItem>()
                 Result.success(items)
             } else {
-                Result.failure(Exception("Failed to get equipped items: ${response.body()?.ErrorStatus}"))
+                Result.failure(Exception("Failed to get equipped items: ${response.ErrorStatus}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -306,15 +307,15 @@ class LoadoutRepository(
             val response = bungieApiService.getProfile(
                 membershipType = membershipType,
                 destinyMembershipId = membershipId,
-                components = "102" // ProfileInventories component (vault)
+                components = "102,300,305" // ProfileInventories, ItemInstances, ItemSockets
             )
             
-            if (response.isSuccessful && response.body()?.ErrorCode == 1) {
+            if (response.isSuccess) {
                 // TODO: Parse vault items from response
                 val items = listOf<DestinyItem>()
                 Result.success(items)
             } else {
-                Result.failure(Exception("Failed to get vault items: ${response.body()?.ErrorStatus}"))
+                Result.failure(Exception("Failed to get vault items: ${response.ErrorStatus}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

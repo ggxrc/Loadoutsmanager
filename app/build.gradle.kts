@@ -5,6 +5,9 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+import java.util.Properties
+import java.io.FileInputStream
+
 android {
     namespace = "com.ads.loadoutsmanager"
     compileSdk = 36
@@ -19,6 +22,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
         manifestPlaceholders["appAuthRedirectScheme"] = "com.ads.loadoutsmanager"
+        
+        // Read API key from local.properties
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(FileInputStream(localPropertiesFile))
+        }
+        
+        buildConfigField("String", "BUNGIE_API_KEY", "\"${localProperties.getProperty("bungie.api.key", "")}\"")
+        buildConfigField("String", "BUNGIE_CLIENT_ID", "\"${localProperties.getProperty("bungie.client.id", "")}\"")
+        buildConfigField("String", "BUNGIE_CLIENT_SECRET", "\"${localProperties.getProperty("bungie.client.secret", "")}\"")
     }
 
     buildTypes {
@@ -39,6 +53,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -80,6 +95,9 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    
+    // Security for encrypted storage
+    implementation(libs.androidx.security.crypto)
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

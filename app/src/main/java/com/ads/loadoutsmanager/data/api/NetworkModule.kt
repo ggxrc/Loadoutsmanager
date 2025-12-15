@@ -1,5 +1,6 @@
 package com.ads.loadoutsmanager.data.api
 
+import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -21,10 +22,12 @@ object NetworkModule {
      * Creates an OkHttpClient with OAuth2 token interceptor
      * @param apiKey Bungie API key
      * @param accessToken OAuth2 access token
+     * @param authenticator Optional authenticator for token refresh
      */
     fun createOkHttpClient(
         apiKey: String,
-        accessToken: String? = null
+        accessToken: String? = null,
+        authenticator: Authenticator? = null
     ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -49,6 +52,11 @@ object NetworkModule {
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .apply {
+                authenticator?.let {
+                    authenticator(it)
+                }
+            }
             .build()
     }
     
@@ -77,13 +85,25 @@ object NetworkModule {
      * Creates BungieApiService instance
      * @param apiKey Bungie API key
      * @param accessToken OAuth2 access token
+     * @param authenticator Optional authenticator for token refresh
      */
     fun createBungieApiService(
         apiKey: String,
-        accessToken: String? = null
+        accessToken: String? = null,
+        authenticator: Authenticator? = null
     ): BungieApiService {
-        val client = createOkHttpClient(apiKey, accessToken)
+        val client = createOkHttpClient(apiKey, accessToken, authenticator)
         val retrofit = createRetrofit(client)
         return retrofit.create(BungieApiService::class.java)
+    }
+    
+    /**
+     * Creates ManifestService instance
+     * @param apiKey Bungie API key
+     */
+    fun createManifestService(apiKey: String): ManifestService {
+        val client = createOkHttpClient(apiKey)
+        val retrofit = createRetrofit(client)
+        return retrofit.create(ManifestService::class.java)
     }
 }

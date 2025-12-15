@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.result.ActivityResultLauncher
+import com.ads.loadoutsmanager.data.auth.SecureTokenStorage
 import net.openid.appauth.*
 
 /**
@@ -19,6 +20,8 @@ class OAuth2Manager(
     private val context: Context,
     private val clientId: String
 ) {
+    
+    private val tokenStorage = SecureTokenStorage(context)
     
     companion object {
         private const val AUTHORIZATION_ENDPOINT = "https://www.bungie.net/en/OAuth/Authorize"
@@ -96,7 +99,17 @@ class OAuth2Manager(
         authorizationService.performTokenRequest(
             authResponse.createTokenExchangeRequest()
         ) { tokenResponse, exception ->
-            if (tokenResponse != null) {
+            if (tokenResponse != null && tokenResponse.accessToken != null) {
+                // Save tokens securely
+                tokenResponse.refreshToken?.let { refreshToken ->
+                    tokenStorage.saveTokens(
+                        accessToken = tokenResponse.accessToken!!,
+                        refreshToken = refreshToken,
+                        expiresIn = tokenResponse.accessTokenExpirationTime?.let {
+                            (it - System.currentTimeMillis()) / 1000
+                        } ?: 3600 // Default 1 hour
+                    )
+                }
                 callback(tokenResponse.accessToken, null)
             } else {
                 callback(null, exception)
@@ -121,11 +134,42 @@ class OAuth2Manager(
             .build()
         
         authorizationService.performTokenRequest(tokenRequest) { tokenResponse, exception ->
-            if (tokenResponse != null) {
+            if (tokenResponse != null && tokenResponse.accessToken != null) {
+                // Update stored tokens
+                tokenResponse.refreshToken?.let { newRefreshToken ->
+                    tokenStorage.saveTokens(
+                        accessToken = tokenResponse.accessToken!!,
+                        refreshToken = newRefreshToken,
+                        expiresIn = tokenResponse.accessTokenExpirationTime?.let {
+                            (it - System.currentTimeMillis()) / 1000
+                        } ?: 3600
+                    )
+                }
                 callback(tokenResponse.accessToken, null)
             } else {
                 callback(null, exception)
             }
         }
+    }
+    
+    /**
+     * Get current access token from storage
+     */
+    fun getAccessToken(): String? {
+        return tokenStorage.getAccessToken()
+    }
+    
+    /**
+     * Check if token is expired
+     */
+    fun isTokenExpired(): Boolean {
+        return tokenStorage.isTokenExpired()
+    }
+    
+    /**
+     * Clear all tokens (logout)
+     */
+    fun logout() {
+        tokenStorage.clearTokens()
     }
 }
