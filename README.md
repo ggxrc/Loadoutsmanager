@@ -31,12 +31,14 @@ Android application for managing Destiny 2 loadouts using the Bungie.net API.
 
 ### App Configuration
 
-1. Open `app/src/main/java/com/ads/loadoutsmanager/data/api/BungieConfig.kt`
-2. Replace the placeholder values:
-   ```kotlin
-   const val API_KEY = "your_actual_api_key"
-   const val CLIENT_ID = "your_actual_client_id"
+1. Copy `local.properties.example` to `local.properties`
+2. Replace the placeholder values with your actual Bungie API credentials:
+   ```properties
+   bungie.api.key=YOUR_ACTUAL_API_KEY
+   bungie.client.id=YOUR_ACTUAL_CLIENT_ID
+   bungie.client.secret=YOUR_ACTUAL_CLIENT_SECRET
    ```
+3. Ensure the Android SDK path is correct for your system
 
 ## Architecture
 
@@ -85,11 +87,16 @@ The app uses OAuth2 for authentication:
 ### Authentication
 - **AppAuth**: OAuth2 and OpenID Connect client
 
+### Database
+- **Room 2.6.1**: Local persistence layer
+- **KSP**: Kotlin Symbol Processing for Room
+
 ### Architecture
 - **Kotlin Coroutines**: Asynchronous programming
 - **Jetpack Compose**: Modern UI toolkit
 - **ViewModel**: UI state management
 - **StateFlow**: Reactive data streams
+- **Material 3**: Design system
 
 ## Usage
 
@@ -118,25 +125,80 @@ The app uses OAuth2 for authentication:
 
 ✅ **Completed:**
 - Project structure setup
-- Dependencies configuration
-- Data models
+- Dependencies configuration (including Room database)
+- Enhanced data models with cosmetics support
 - API service interfaces
 - Network layer with OAuth2
-- Repository pattern implementation
+- Repository pattern with Room database integration
 - ViewModel for state management
 - Basic OAuth2 flow
+- Dynamic theme system (subclass-based)
+- Item card UI components
+- Local database for offline storage (Room)
+- Smart caching strategy (loadouts local, vault from API)
+- Inventory checking flow optimization
 
 🚧 **In Progress:**
-- UI implementation with Jetpack Compose
-- Local database for offline storage
-- Complete OAuth2 integration testing
+- Manifest integration for item details
+- Complete API response parsing
+- OAuth2 backend proxy (for production security)
 
 📋 **Planned:**
+- Item icons and images from manifest
 - Advanced filtering and search
 - Loadout sharing
-- Character switching
-- Item details view
+- Character switching UI
+- Perks and stats display
 - Vault management UI
+- Theme animations
+
+## New Features
+
+### Dynamic Theming
+The app features a dynamic theming system that adapts to the subclass of your loadout:
+- **Solar**: Orange/fire color scheme
+- **Arc**: Blue/electric color scheme
+- **Void**: Purple/void color scheme
+- **Stasis**: Ice/crystal color scheme
+- **Strand**: Green/weave color scheme
+- **Kinetic**: Gray/neutral color scheme
+- **Base**: Dark sci-fi theme (default)
+
+### Cosmetics Support
+Loadouts now save and restore:
+- Weapon ornaments (skins)
+- Armor ornaments (skins)
+- Shaders (tonalizadores) for each equipment piece
+
+### Smart Caching
+- **Loadouts**: Cached locally for offline access
+- **Vault items**: Always fetched fresh from API
+- **Equipped items**: Fetched in real-time
+
+### Inventory Flow Optimization
+When equipping loadouts, the app checks in order:
+1. Target character inventory
+2. Other characters' inventories  
+3. Vault (last resort)
+
+This minimizes API calls and transfer operations.
+
+## Authentication Modes
+
+The app supports two authentication modes:
+
+### API Key Only (Read-Only)
+- View inventory and vault
+- Create and manage loadouts locally
+- No item equipping or transferring via API
+
+### Full OAuth2 (Read/Write)
+- All read-only features
+- Equip items via API
+- Transfer items between characters and vault
+- Full loadout management
+
+See [AUTHENTICATION.md](AUTHENTICATION.md) for detailed setup instructions.
 
 ## License
 

@@ -2,7 +2,11 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
+
+import java.util.Properties
+import java.io.FileInputStream
 
 android {
     namespace = "com.ads.loadoutsmanager"
@@ -16,6 +20,19 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.ads.loadoutsmanager"
+        
+        // Read API key from local.properties
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(FileInputStream(localPropertiesFile))
+        }
+        
+        buildConfigField("String", "BUNGIE_API_KEY", "\"${localProperties.getProperty("bungie.api.key", "")}\"")
+        buildConfigField("String", "BUNGIE_CLIENT_ID", "\"${localProperties.getProperty("bungie.client.id", "")}\"")
+        buildConfigField("String", "BUNGIE_CLIENT_SECRET", "\"${localProperties.getProperty("bungie.client.secret", "")}\"")
     }
 
     buildTypes {
@@ -36,6 +53,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -72,6 +90,17 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+    
+    // Room Database
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    
+    // Security for encrypted storage
+    implementation(libs.androidx.security.crypto)
+    
+    // Coil for image loading
+    implementation(libs.coil.compose)
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

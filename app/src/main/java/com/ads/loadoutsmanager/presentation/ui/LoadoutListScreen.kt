@@ -13,6 +13,7 @@ import com.ads.loadoutsmanager.data.model.DestinyLoadout
 /**
  * Main screen for displaying and managing loadouts
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoadoutListScreen(
     loadouts: List<DestinyLoadout>,

@@ -1,33 +1,16 @@
 package com.ads.loadoutsmanager.data.api
 
+import com.ads.loadoutsmanager.BuildConfig
+
 /**
- * Configuration for Bungie API and OAuth2
- * 
- * IMPORTANT: Before using this app, you must:
- * 1. Register your app at https://www.bungie.net/en/Application
- * 2. Get your API Key and Client ID
- * 3. Configure your OAuth2 redirect URI to: com.ads.loadoutsmanager://oauth2redirect
- * 4. Replace the placeholder values below with your actual credentials
+ * Configuration for Bungie API endpoints and OAuth2
+ *
+ * API credentials are loaded from local.properties via BuildConfig:
+ * - bungie.api.key → BuildConfig.BUNGIE_API_KEY
+ * - bungie.client.id → BuildConfig.BUNGIE_CLIENT_ID
+ * - bungie.client.secret → BuildConfig.BUNGIE_CLIENT_SECRET
  */
 object BungieConfig {
-    
-    /**
-     * Your Bungie API Key
-     * Get it from: https://www.bungie.net/en/Application
-     */
-    const val API_KEY = "YOUR_API_KEY_HERE"
-    
-    /**
-     * Your OAuth2 Client ID
-     * Get it from: https://www.bungie.net/en/Application
-     */
-    const val CLIENT_ID = "YOUR_CLIENT_ID_HERE"
-    
-    /**
-     * OAuth2 Redirect URI
-     * This must match the redirect URI configured in your Bungie app
-     */
-    const val REDIRECT_URI = "com.ads.loadoutsmanager://oauth2redirect"
     
     /**
      * Bungie API Base URL
@@ -45,9 +28,41 @@ object BungieConfig {
     const val TOKEN_ENDPOINT = "https://www.bungie.net/platform/app/oauth/token/"
     
     /**
-     * Check if configuration is complete
+     * OAuth2 Redirect URI (must match Bungie app configuration)
      */
-    fun isConfigured(): Boolean {
-        return API_KEY != "YOUR_API_KEY_HERE" && CLIENT_ID != "YOUR_CLIENT_ID_HERE"
+    const val REDIRECT_URI = "com.ads.loadoutsmanager://oauth2redirect"
+
+    /**
+     * Get API Key from BuildConfig
+     */
+    val apiKey: String
+        get() = BuildConfig.BUNGIE_API_KEY
+
+    /**
+     * Get OAuth Client ID from BuildConfig
+     */
+    val clientId: String
+        get() = BuildConfig.BUNGIE_CLIENT_ID
+
+    /**
+     * Get OAuth Client Secret from BuildConfig
+     */
+    val clientSecret: String
+        get() = BuildConfig.BUNGIE_CLIENT_SECRET
+
+    /**
+     * Check if API Key is configured
+     */
+    fun isApiKeyConfigured(): Boolean {
+        return apiKey.isNotEmpty()
+    }
+    
+    /**
+     * Check if OAuth2 is fully configured
+     */
+    fun isOAuth2Configured(): Boolean {
+        return isApiKeyConfigured() && 
+               clientId.isNotEmpty() &&
+               clientSecret.isNotEmpty()
     }
 }

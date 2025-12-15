@@ -1,0 +1,17 @@
+# Example local.properties for Destiny 2 Loadouts Manager
+# Copy this file to local.properties and replace with your actual values
+
+# Android SDK location (adjust path if needed)
+sdk.dir=C:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk
+
+# Bungie API Configuration
+# 1. Go to https://www.bungie.net/en/Application
+# 2. Create a new application or use existing one
+# 3. Copy your API Key, Client ID, and Client Secret below
+bungie.api.key=YOUR_API_KEY_HERE
+bungie.client.id=YOUR_CLIENT_ID_HERE
+bungie.client.secret=YOUR_CLIENT_SECRET_HERE
+
+# OAuth Configuration
+# Set the redirect URI in your Bungie app to: com.ads.loadoutsmanager://oauth2redirect
+# Request these OAuth scopes: ReadUserData, ReadDestinyInventoryAndVault, MoveEquipDestinyItems
